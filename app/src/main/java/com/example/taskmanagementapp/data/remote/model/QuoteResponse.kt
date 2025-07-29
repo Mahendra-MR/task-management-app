@@ -6,8 +6,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class QuoteResponse(
-    @SerialName("content") val content: String,
-    @SerialName("author") val author: String
+    @SerialName("q") val content: String,
+    @SerialName("a") val author: String,
+    @SerialName("h") val html: String? = null
 ) {
     fun toDomain(): Quote {
         return Quote(

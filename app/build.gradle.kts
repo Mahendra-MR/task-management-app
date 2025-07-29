@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace = "com.example.taskmanagementapp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.taskmanagementapp"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.retrofit.serialization.converter)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3") //for JSON parsing
     implementation("com.squareup.okhttp3:okhttp:4.12.0") // for `toMediaType()`
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // for logging
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")

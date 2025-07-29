@@ -1,5 +1,6 @@
 package com.example.taskmanagementapp.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.taskmanagementapp.domain.model.Task
@@ -7,6 +8,8 @@ import com.example.taskmanagementapp.domain.model.Quote
 import com.example.taskmanagementapp.domain.usecase.TaskUseCases
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.net.UnknownHostException
+import java.io.IOException
 
 data class TaskUiState(
     val tasks: List<Task> = emptyList(),
@@ -41,10 +44,31 @@ class TaskViewModel(
     fun loadQuote() {
         viewModelScope.launch {
             try {
+                _state.update { it.copy(isLoading = true, error = null) }
+                Log.d("TaskViewModel", "Starting to load quote...")
+
                 val quote = useCases.getQuote()
-                _state.update { it.copy(quote = quote) }
+                Log.d("TaskViewModel", "Quote loaded successfully: ${quote.content}")
+
+                _state.update { it.copy(quote = quote, isLoading = false, error = null) }
+            } catch (e: UnknownHostException) {
+                Log.e("TaskViewModel", "Network error: No internet connection", e)
+                _state.update { it.copy(
+                    error = "No internet connection. Please check your network.",
+                    isLoading = false
+                ) }
+            } catch (e: IOException) {
+                Log.e("TaskViewModel", "Network error: ${e.message}", e)
+                _state.update { it.copy(
+                    error = "Network error. Please try again later.",
+                    isLoading = false
+                ) }
             } catch (e: Exception) {
-                _state.update { it.copy(error = "Failed to load quote.") }
+                Log.e("TaskViewModel", "Failed to load quote: ${e.message}", e)
+                _state.update { it.copy(
+                    error = "Failed to load quote: ${e.message}",
+                    isLoading = false
+                ) }
             }
         }
     }
@@ -103,5 +127,9 @@ class TaskViewModel(
                 _state.update { state -> state.copy(tasks = it) }
             }
         }
+    }
+
+    fun retryLoadQuote() {
+        loadQuote()
     }
 }

@@ -7,6 +7,7 @@ class QuoteRemoteSource(
     private val quoteService: QuoteService
 ) {
     suspend fun fetchRandomQuote(): Quote {
-        return quoteService.getRandomQuote().toDomain()
+        val quotes = quoteService.getRandomQuote()
+        return quotes.first().toDomain()
     }
 }

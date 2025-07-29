@@ -9,12 +9,14 @@ import com.example.taskmanagementapp.data.remote.api.QuoteService
 import com.example.taskmanagementapp.data.repository.TaskRepositoryImpl
 import com.example.taskmanagementapp.domain.repository.TaskRepository
 import com.example.taskmanagementapp.domain.usecase.*
-import com.example.taskmanagementapp.presentation.viewmodel.TaskViewModel
-import retrofit2.Retrofit
 import com.example.taskmanagementapp.presentation.viewmodel.TaskViewModelFactory
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.Retrofit
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 
 object AppModule {
 
@@ -47,9 +49,27 @@ object AppModule {
 
     private fun provideQuoteApi(): QuoteService {
         val contentType = "application/json".toMediaType()
+        val json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+
+        // Add logging interceptor for debugging
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+
         return Retrofit.Builder()
-            .baseUrl("https://api.quotable.io/")
-            .addConverterFactory(Json.asConverterFactory(contentType))
+            .baseUrl("https://zenquotes.io/api/")
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory(contentType))
             .build()
             .create(QuoteService::class.java)
     }
