@@ -20,11 +20,18 @@ import java.util.concurrent.TimeUnit
 
 object AppModule {
 
+    private var isInitialized = false
+
     private lateinit var taskRepository: TaskRepository
     lateinit var taskUseCases: TaskUseCases
+        private set
+
     lateinit var viewModelFactory: ViewModelProvider.Factory
+        private set
 
     fun init(context: Context) {
+        if (isInitialized) return
+
         val database = provideDatabase(context)
         val api = provideQuoteApi()
         val quoteRemoteSource = QuoteRemoteSource(api)
@@ -35,13 +42,14 @@ object AppModule {
         )
 
         taskUseCases = provideUseCases(taskRepository)
-
         viewModelFactory = TaskViewModelFactory(taskUseCases)
+
+        isInitialized = true
     }
 
     private fun provideDatabase(context: Context): TaskDatabase {
         return Room.databaseBuilder(
-            context,
+            context.applicationContext,
             TaskDatabase::class.java,
             "task_db"
         ).build()
@@ -54,7 +62,6 @@ object AppModule {
             isLenient = true
         }
 
-        // Add logging interceptor for debugging
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
@@ -67,7 +74,7 @@ object AppModule {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl("https://zenquotes.io/api/")
+            .baseUrl("https://quotable-proxy.onrender.com/") //Render Proxy URL
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()

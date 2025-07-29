@@ -17,6 +17,8 @@ object Routes {
     const val TASK_LIST = "task_list"
     const val ADD_TASK = "add_task"
     const val EDIT_TASK = "edit_task"
+    const val TASK_DETAILS = "task_details"
+    // const val CATEGORIES = "categories" // <-- Commented because screen doesn't exist
 }
 
 @Composable
@@ -24,8 +26,9 @@ fun AppNavigation(viewModel: TaskViewModel) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
+
         composable(Routes.HOME) {
-            HomeScreen(viewModel = viewModel)
+            HomeScreen(viewModel = viewModel, navController = navController)
         }
 
         composable(Routes.TASK_LIST) {

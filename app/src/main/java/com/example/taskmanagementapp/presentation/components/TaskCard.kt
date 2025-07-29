@@ -8,6 +8,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.taskmanagementapp.domain.model.Task
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun TaskCard(
@@ -17,18 +20,44 @@ fun TaskCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp, horizontal = 8.dp)
             .clickable { onClick() },
-        elevation = CardDefaults.cardElevation()
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(task.title, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(task.description, style = MaterialTheme.typography.bodySmall)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Due: ${task.dueDate}", style = MaterialTheme.typography.labelSmall)
-            Text("Priority: ${task.priority}", style = MaterialTheme.typography.labelSmall)
-            Text("Status: ${if (task.isCompleted) "Completed" else "Pending"}", style = MaterialTheme.typography.labelSmall)
+            Text(
+                text = task.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = task.description,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+
+            Text(
+                text = "Due: ${dateFormat.format(Date(task.dueDate))}",
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text(
+                text = "Priority: ${task.priority}",
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text(
+                text = "Category: ${task.category}",
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text(
+                text = "Status: ${if (task.isCompleted) "Completed" else "Pending"}",
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
