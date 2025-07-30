@@ -1,8 +1,10 @@
 package com.example.taskmanagementapp.data.repository
 
 import com.example.taskmanagementapp.data.local.dao.CategoryDao
+import com.example.taskmanagementapp.data.local.dao.QuoteDao
 import com.example.taskmanagementapp.data.local.dao.TaskDao
 import com.example.taskmanagementapp.data.local.entities.CategoryEntity
+import com.example.taskmanagementapp.data.local.entities.QuoteEntity
 import com.example.taskmanagementapp.data.local.entities.toDomain
 import com.example.taskmanagementapp.data.local.entities.toEntity
 import com.example.taskmanagementapp.data.remote.QuoteRemoteSource
@@ -15,18 +17,17 @@ import kotlinx.coroutines.flow.map
 class TaskRepositoryImpl(
     private val taskDao: TaskDao,
     private val categoryDao: CategoryDao,
-    private val quoteRemoteSource: QuoteRemoteSource
+    private val quoteRemoteSource: QuoteRemoteSource,
+    private val quoteDao: QuoteDao
 ) : TaskRepository {
 
     override suspend fun addTask(task: Task) {
         taskDao.insertTask(task.toEntity())
-        // Also add category to categories table if it doesn't exist
         categoryDao.insertCategory(CategoryEntity(task.category))
     }
 
     override suspend fun updateTask(task: Task) {
         taskDao.updateTask(task.toEntity())
-        // Also add category to categories table if it doesn't exist
         categoryDao.insertCategory(CategoryEntity(task.category))
     }
 
@@ -43,7 +44,6 @@ class TaskRepositoryImpl(
     }
 
     override suspend fun getAllCategories(): List<String> {
-        // Get categories from both tasks and categories table, then combine and deduplicate
         val taskCategories = taskDao.getAllCategories()
         val storedCategories = categoryDao.getAllCategories().map { it.name }
         return (taskCategories + storedCategories).distinct().sorted()
@@ -62,23 +62,33 @@ class TaskRepositoryImpl(
     }
 
     override suspend fun getRandomQuote(): Quote {
-        return quoteRemoteSource.fetchRandomQuote()
+        return try {
+            val quote = quoteRemoteSource.fetchRandomQuote()
+            quoteDao.insertQuote(
+                QuoteEntity(
+                    id = 1,
+                    content = quote.content,
+                    author = quote.author
+                )
+            )
+            quote
+        } catch (e: Exception) {
+            quoteDao.getCachedQuote()?.let {
+                Quote(content = it.content, author = it.author)
+            } ?: throw e
+        }
     }
 
-    // Category management implementations
     override suspend fun addCategory(category: String) {
         categoryDao.insertCategory(CategoryEntity(category))
     }
 
     override suspend fun deleteCategory(category: String) {
-        // Don't delete tasks, just remove from categories table
         categoryDao.deleteCategoryByName(category)
     }
 
     override suspend fun updateCategory(oldCategory: String, newCategory: String) {
-        // Update all tasks with old category to new category
         taskDao.updateTasksCategory(oldCategory, newCategory)
-        // Update categories table
         categoryDao.deleteCategoryByName(oldCategory)
         categoryDao.insertCategory(CategoryEntity(newCategory))
     }

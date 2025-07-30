@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
 import com.example.taskmanagementapp.data.local.MIGRATION_1_2
+import com.example.taskmanagementapp.data.local.MIGRATION_2_3
 import com.example.taskmanagementapp.data.local.TaskDatabase
 import com.example.taskmanagementapp.data.remote.QuoteRemoteSource
 import com.example.taskmanagementapp.data.remote.api.QuoteService
@@ -37,10 +38,13 @@ object AppModule {
         val api = provideQuoteApi()
         val quoteRemoteSource = QuoteRemoteSource(api)
 
+        val quoteDao = database.quoteDao()
+
         taskRepository = TaskRepositoryImpl(
             taskDao = database.taskDao(),
             categoryDao = database.categoryDao(),
-            quoteRemoteSource = quoteRemoteSource
+            quoteRemoteSource = quoteRemoteSource,
+            quoteDao = quoteDao // Injected here
         )
 
         taskUseCases = provideUseCases(taskRepository)
@@ -55,7 +59,7 @@ object AppModule {
             TaskDatabase::class.java,
             "task_db"
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
     }
 
