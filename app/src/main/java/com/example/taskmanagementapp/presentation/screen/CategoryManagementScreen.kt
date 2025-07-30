@@ -1,14 +1,11 @@
 package com.example.taskmanagementapp.presentation.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +18,8 @@ import com.example.taskmanagementapp.presentation.viewmodel.TaskViewModel
 @Composable
 fun CategoryManagementScreen(
     viewModel: TaskViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onViewTasksForCategory: (String) -> Unit // ✅ NEW: handle category click to view tasks
 ) {
     val state by viewModel.state.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
@@ -38,10 +36,7 @@ fun CategoryManagementScreen(
             title = { Text("Manage Categories") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back"
-                    )
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             },
             actions = {
@@ -51,17 +46,13 @@ fun CategoryManagementScreen(
                         showAddDialog = true
                     }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Category"
-                    )
+                    Icon(Icons.Default.Add, contentDescription = "Add Category")
                 }
             }
         )
 
         // Content
         if (state.categories.isEmpty()) {
-            // Empty State
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -69,42 +60,22 @@ fun CategoryManagementScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Category,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "No Categories Yet",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("No Categories Yet", style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Add your first category to organize your tasks",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("Add your first category to organize your tasks", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = {
-                        newCategoryName = ""
-                        showAddDialog = true
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
+                Button(onClick = {
+                    newCategoryName = ""
+                    showAddDialog = true
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Add Category")
                 }
             }
         } else {
-            // Categories List
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
@@ -122,6 +93,7 @@ fun CategoryManagementScreen(
                 items(state.categories) { category ->
                     CategoryItem(
                         category = category,
+                        onClick = { onViewTasksForCategory(category) }, // ✅ navigate on click
                         onEdit = {
                             selectedCategory = category
                             newCategoryName = category
@@ -143,11 +115,7 @@ fun CategoryManagementScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Add New Category")
                     }
@@ -156,7 +124,7 @@ fun CategoryManagementScreen(
         }
     }
 
-    // Add Category Dialog
+    // Dialogs
     if (showAddDialog) {
         AddEditCategoryDialog(
             title = "Add Category",
@@ -172,7 +140,6 @@ fun CategoryManagementScreen(
         )
     }
 
-    // Edit Category Dialog
     if (showEditDialog) {
         AddEditCategoryDialog(
             title = "Edit Category",
@@ -188,21 +155,16 @@ fun CategoryManagementScreen(
         )
     }
 
-    // Delete Category Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Category") },
-            text = {
-                Text("Are you sure you want to delete the category \"$selectedCategory\"? This will not delete the tasks in this category.")
-            },
+            text = { Text("Are you sure you want to delete \"$selectedCategory\"? This will not delete its tasks.") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteCategory(selectedCategory)
-                        showDeleteDialog = false
-                    }
-                ) {
+                TextButton(onClick = {
+                    viewModel.deleteCategory(selectedCategory)
+                    showDeleteDialog = false
+                }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
@@ -218,11 +180,14 @@ fun CategoryManagementScreen(
 @Composable
 private fun CategoryItem(
     category: String,
+    onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() } // ✅ Make entire card clickable
     ) {
         Row(
             modifier = Modifier
@@ -235,12 +200,7 @@ private fun CategoryItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Category,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = category,
@@ -249,24 +209,12 @@ private fun CategoryItem(
                 )
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = onEdit) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Category",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Category",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -294,10 +242,7 @@ private fun AddEditCategoryDialog(
             )
         },
         confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                enabled = categoryName.trim().isNotBlank()
-            ) {
+            TextButton(onClick = onConfirm, enabled = categoryName.trim().isNotBlank()) {
                 Text("Save")
             }
         },

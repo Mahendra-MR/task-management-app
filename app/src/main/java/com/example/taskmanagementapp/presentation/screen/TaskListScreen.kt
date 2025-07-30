@@ -16,33 +16,34 @@ import androidx.compose.ui.unit.dp
 import com.example.taskmanagementapp.domain.model.Task
 import com.example.taskmanagementapp.presentation.components.FilterBar
 import com.example.taskmanagementapp.presentation.components.FilterState
-import com.example.taskmanagementapp.presentation.components.TaskCard
 import com.example.taskmanagementapp.presentation.viewmodel.TaskViewModel
 
 @Composable
 fun TaskListScreen(
     viewModel: TaskViewModel,
+    categoryFilter: String = "",
     onTaskClick: (Task) -> Unit,
     onEditTask: (Task) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    var filterState by remember { mutableStateOf(FilterState()) }
 
-    // Apply filters to tasks
+    var filterState by remember(categoryFilter) {
+        mutableStateOf(
+            if (categoryFilter.isNotEmpty())
+                FilterState(selectedCategory = categoryFilter)
+            else FilterState()
+        )
+    }
+
+    val hasFilters = filterState.selectedCategory != null ||
+            filterState.selectedPriority != null ||
+            filterState.selectedStatus != null
+
     val filteredTasks = remember(state.tasks, filterState) {
         state.tasks.filter { task ->
-            val categoryMatch = filterState.selectedCategory?.let {
-                task.category == it
-            } ?: true
-
-            val priorityMatch = filterState.selectedPriority?.let {
-                task.priority == it
-            } ?: true
-
-            val statusMatch = filterState.selectedStatus?.let {
-                task.isCompleted == it
-            } ?: true
-
+            val categoryMatch = filterState.selectedCategory?.let { task.category == it } ?: true
+            val priorityMatch = filterState.selectedPriority?.let { task.priority == it } ?: true
+            val statusMatch = filterState.selectedStatus?.let { task.isCompleted == it } ?: true
             categoryMatch && priorityMatch && statusMatch
         }
     }
@@ -55,50 +56,75 @@ fun TaskListScreen(
         Text(
             text = "My Tasks",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        // Filter Bar
         FilterBar(
             categories = state.categories,
             filterState = filterState,
             onFilterChange = { filterState = it },
             onClearFilters = { filterState = FilterState() },
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        if (filteredTasks.isEmpty()) {
-            if (state.tasks.isEmpty()) {
-                EmptyTaskState()
-            } else {
-                EmptyFilterState(
-                    onClearFilters = { filterState = FilterState() }
-                )
-            }
-        } else {
-            val groupedTasks = filteredTasks.groupBy { it.category }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                groupedTasks.forEach { (category, tasksInCategory) ->
-                    item {
-                        Text(
-                            text = "$category (${tasksInCategory.size})",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier
-                                .padding(top = 16.dp, bottom = 8.dp)
-                                .fillMaxWidth()
+        when {
+            state.tasks.isEmpty() -> EmptyTaskState()
+            filteredTasks.isEmpty() -> EmptyFilterState { filterState = FilterState() }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (!hasFilters) {
+                        val groupedByStatus = listOf(
+                            "Pending" to filteredTasks.filter { !it.isCompleted },
+                            "Completed" to filteredTasks.filter { it.isCompleted }
                         )
-                    }
 
-                    items(tasksInCategory) { task ->
-                        EnhancedTaskCard(
-                            task = task,
-                            onClick = { onTaskClick(task) },
-                            onEdit = { onEditTask(task) }
-                        )
+                        groupedByStatus.forEach { (label, tasks) ->
+                            if (tasks.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        text = "$label (${tasks.size})",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                                    )
+                                }
+                                items(tasks) { task ->
+                                    EnhancedTaskCard(
+                                        task = task,
+                                        onClick = { onTaskClick(task) },
+                                        onEdit = { onEditTask(task) },
+                                        onStatusToggle = {
+                                            viewModel.updateTask(it.copy(isCompleted = !it.isCompleted))
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        val groupedTasks = filteredTasks.groupBy { it.category }
+
+                        groupedTasks.forEach { (category, tasksInCategory) ->
+                            item {
+                                Text(
+                                    text = "$category (${tasksInCategory.size})",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                                )
+                            }
+
+                            items(tasksInCategory) { task ->
+                                EnhancedTaskCard(
+                                    task = task,
+                                    onClick = { onTaskClick(task) },
+                                    onEdit = { onEditTask(task) },
+                                    onStatusToggle = {
+                                        viewModel.updateTask(it.copy(isCompleted = !it.isCompleted))
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -110,7 +136,8 @@ fun TaskListScreen(
 fun EnhancedTaskCard(
     task: Task,
     onClick: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onStatusToggle: (Task) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -121,17 +148,13 @@ fun EnhancedTaskCard(
             else MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.titleMedium,
@@ -146,18 +169,13 @@ fun EnhancedTaskCard(
                         Text(
                             text = task.description,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (task.isCompleted)
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2
                         )
                     }
                 }
 
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier.size(32.dp)
-                ) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Task",
@@ -169,13 +187,11 @@ fun EnhancedTaskCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Task Details Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Priority Badge
                 Surface(
                     color = when (task.priority.name) {
                         "HIGH" -> Color.Red.copy(alpha = 0.1f)
@@ -197,7 +213,6 @@ fun EnhancedTaskCard(
                     )
                 }
 
-                // Status Badge
                 Surface(
                     color = if (task.isCompleted)
                         MaterialTheme.colorScheme.primaryContainer
@@ -218,15 +233,19 @@ fun EnhancedTaskCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Clickable area for task details
-            TextButton(
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "View Details",
-                    style = MaterialTheme.typography.labelMedium
-                )
+                TextButton(onClick = onClick) {
+                    Text("View Details", style = MaterialTheme.typography.labelMedium)
+                }
+                TextButton(onClick = { onStatusToggle(task) }) {
+                    Text(
+                        text = if (task.isCompleted) "Mark as Pending" else "Mark as Completed",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
         }
     }
@@ -288,9 +307,7 @@ fun EmptyFilterState(
             style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onClearFilters
-        ) {
+        Button(onClick = onClearFilters) {
             Text("Clear Filters")
         }
     }

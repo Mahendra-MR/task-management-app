@@ -7,5 +7,6 @@ data class Task(
     val dueDate: Long,  // Timestamp in millis
     val priority: Priority,
     val category: String,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val completedDate: Long? = null
 )
