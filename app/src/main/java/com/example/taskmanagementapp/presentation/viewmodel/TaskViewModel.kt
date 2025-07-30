@@ -27,6 +27,9 @@ class TaskViewModel(
     private val _state = MutableStateFlow(TaskUiState())
     val state: StateFlow<TaskUiState> = _state.asStateFlow()
 
+    private val _tasks = MutableStateFlow<List<Task>>(emptyList())
+    val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+
     init {
         loadTasks()
         loadQuote()
@@ -35,9 +38,12 @@ class TaskViewModel(
 
     fun loadTasks() {
         viewModelScope.launch {
-            useCases.getAllTasks().collect { tasks ->
-                _state.update { it.copy(tasks = tasks) }
-            }
+            useCases.getAllTasks()
+                .distinctUntilChanged()
+                .collect { taskList ->
+                    _tasks.value = taskList
+                    _state.update { it.copy(tasks = taskList) }
+                }
         }
     }
 
@@ -52,25 +58,20 @@ class TaskViewModel(
 
                 _state.update { it.copy(quote = quote, isLoading = false, error = null) }
             } catch (e: UnknownHostException) {
-                Log.e("TaskViewModel", "Network error: No internet connection", e)
-                _state.update { it.copy(
-                    error = "No internet connection. Please check your network.",
-                    isLoading = false
-                ) }
+                Log.e("TaskViewModel", "No internet", e)
+                _state.update { it.copy(error = "No internet connection", isLoading = false) }
             } catch (e: IOException) {
-                Log.e("TaskViewModel", "Network error: ${e.message}", e)
-                _state.update { it.copy(
-                    error = "Network error. Please try again later.",
-                    isLoading = false
-                ) }
+                Log.e("TaskViewModel", "Network error", e)
+                _state.update { it.copy(error = "Network error. Try again.", isLoading = false) }
             } catch (e: Exception) {
-                Log.e("TaskViewModel", "Failed to load quote: ${e.message}", e)
-                _state.update { it.copy(
-                    error = "Failed to load quote: ${e.message}",
-                    isLoading = false
-                ) }
+                Log.e("TaskViewModel", "Unexpected error", e)
+                _state.update { it.copy(error = "Failed to load quote: ${e.message}", isLoading = false) }
             }
         }
+    }
+
+    fun retryLoadQuote() {
+        loadQuote()
     }
 
     fun loadCategories() {
@@ -83,20 +84,23 @@ class TaskViewModel(
     fun addTask(task: Task) {
         viewModelScope.launch {
             useCases.addTask(task)
-            loadCategories() // Reload categories in case a new one was added
+            loadTasks()
+            loadCategories()
         }
     }
 
     fun updateTask(task: Task) {
         viewModelScope.launch {
             useCases.updateTask(task)
-            loadCategories() // Reload categories in case a new one was added
+            loadTasks()
+            loadCategories()
         }
     }
 
     fun deleteTask(task: Task) {
         viewModelScope.launch {
             useCases.deleteTask(task)
+            loadTasks()
         }
     }
 
@@ -109,30 +113,35 @@ class TaskViewModel(
 
     fun filterByCategory(category: String) {
         viewModelScope.launch {
-            useCases.filterTasks.byCategory(category).collect {
-                _state.update { state -> state.copy(tasks = it) }
-            }
+            useCases.filterTasks.byCategory(category)
+                .distinctUntilChanged()
+                .collect { filtered ->
+                    _tasks.value = filtered
+                    _state.update { it.copy(tasks = filtered) }
+                }
         }
     }
 
     fun filterByPriority(priority: String) {
         viewModelScope.launch {
-            useCases.filterTasks.byPriority(priority).collect {
-                _state.update { state -> state.copy(tasks = it) }
-            }
+            useCases.filterTasks.byPriority(priority)
+                .distinctUntilChanged()
+                .collect { filtered ->
+                    _tasks.value = filtered
+                    _state.update { it.copy(tasks = filtered) }
+                }
         }
     }
 
     fun filterByStatus(isCompleted: Boolean) {
         viewModelScope.launch {
-            useCases.filterTasks.byStatus(isCompleted).collect {
-                _state.update { state -> state.copy(tasks = it) }
-            }
+            useCases.filterTasks.byStatus(isCompleted)
+                .distinctUntilChanged()
+                .collect { filtered ->
+                    _tasks.value = filtered
+                    _state.update { it.copy(tasks = filtered) }
+                }
         }
-    }
-
-    fun retryLoadQuote() {
-        loadQuote()
     }
 
     // Category management methods
@@ -163,7 +172,7 @@ class TaskViewModel(
             try {
                 useCases.updateCategory(oldCategory, newCategory)
                 loadCategories()
-                loadTasks() // Reload tasks to show updated categories
+                loadTasks()
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to update category: ${e.message}", e)
             }

@@ -1,15 +1,18 @@
 package com.example.taskmanagementapp.presentation.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.taskmanagementapp.domain.model.Priority
 import com.example.taskmanagementapp.presentation.navigation.Routes
 import com.example.taskmanagementapp.presentation.viewmodel.TaskViewModel
 
@@ -23,75 +26,109 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        // Title
         Text(
-            text = "Task Management",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
+            text = "Task Management App",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
         )
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Spacer(modifier = Modifier.height(32.dp))
-
+        // Navigation Buttons (arranged vertically if needed)
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(
-                onClick = { navController.navigate(Routes.TASK_LIST) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("View All Tasks")
+            NavigationButton("My Tasks") {
+                navController.navigate(Routes.TASK_LIST)
             }
-            Button(
-                onClick = { navController.navigate(Routes.ADD_TASK) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Add New Task")
+            NavigationButton("New Task") {
+                navController.navigate(Routes.ADD_TASK)
             }
-            Button(
-                onClick = { navController.navigate(Routes.CATEGORIES) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Manage Categories")
+            NavigationButton("Categories") {
+                navController.navigate(Routes.CATEGORIES)
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // Priority Tasks
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Quote section
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(4.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val pendingPriorityTasks = state.tasks.filter {
+                    it.priority == Priority.HIGH && !it.isCompleted
+                }
+
+                if (pendingPriorityTasks.isNotEmpty()) {
+                    Text(
+                        text = "High Priority Tasks",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    pendingPriorityTasks.take(3).forEach { task ->
+                        Text("• ${task.title}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TextButton(
+                        onClick = { navController.navigate(Routes.TASK_LIST) },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("View All")
+                    }
+                } else {
+                    Text(
+                        text = "No high-priority pending tasks.",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Create a new task or explore your existing ones.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        // Motivational Quote
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEEE4FF)) // Elegant purple
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 when {
                     state.isLoading -> {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Loading motivational quote...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
+                        Text("Fetching quote...")
                     }
 
                     state.error != null -> {
                         Text(
-                            text = state.error ?: "",
+                            text = state.error ?: "Error loading quote.",
                             color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = { viewModel.retryLoadQuote() }) {
                             Text("Retry")
                         }
@@ -100,28 +137,38 @@ fun HomeScreen(
                     state.quote != null -> {
                         Text(
                             text = "\"${state.quote!!.content}\"",
-                            style = MaterialTheme.typography.bodyLarge,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = Color.Black
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "— ${state.quote!!.author}",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Light,
+                            fontSize = 12.sp,
+                            color = Color.DarkGray,
                             textAlign = TextAlign.Center
                         )
                     }
 
                     else -> {
-                        Text(
-                            text = "Welcome to Task Management!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center
-                        )
+                        Text("Welcome to your task dashboard!")
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun NavigationButton(text: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .width(300.dp)
+            .height(48.dp)
+    ) {
+        Text(text = text, fontWeight = FontWeight.SemiBold)
     }
 }
