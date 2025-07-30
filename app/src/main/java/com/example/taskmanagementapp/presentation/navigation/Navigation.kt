@@ -18,7 +18,7 @@ object Routes {
     const val ADD_TASK = "add_task"
     const val EDIT_TASK = "edit_task"
     const val TASK_DETAILS = "task_details"
-    // const val CATEGORIES = "categories" // <-- Commented because screen doesn't exist
+    const val CATEGORIES = "categories"
 }
 
 @Composable
@@ -35,6 +35,10 @@ fun AppNavigation(viewModel: TaskViewModel) {
             TaskListScreen(
                 viewModel = viewModel,
                 onTaskClick = { task ->
+                    val json = Uri.encode(Gson().toJson(task))
+                    navController.navigate("${Routes.TASK_DETAILS}/$json")
+                },
+                onEditTask = { task ->
                     val json = Uri.encode(Gson().toJson(task))
                     navController.navigate("${Routes.EDIT_TASK}/$json")
                 }
@@ -58,6 +62,30 @@ fun AppNavigation(viewModel: TaskViewModel) {
                 viewModel = viewModel,
                 taskToEdit = task,
                 onSave = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "${Routes.TASK_DETAILS}/{task}",
+            arguments = listOf(navArgument("task") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val taskJson = backStackEntry.arguments?.getString("task")
+            val task = Gson().fromJson(taskJson, Task::class.java)
+            TaskDetailsScreen(
+                task = task,
+                viewModel = viewModel,
+                onEdit = {
+                    val json = Uri.encode(Gson().toJson(task))
+                    navController.navigate("${Routes.EDIT_TASK}/$json")
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.CATEGORIES) {
+            CategoryManagementScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
             )
         }
     }

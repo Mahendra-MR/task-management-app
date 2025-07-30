@@ -8,5 +8,8 @@ data class TaskUseCases(
     val getTaskById: GetTaskById,
     val getQuote: GetQuote,
     val getCategories: GetCategories,
-    val filterTasks: FilterTasks
+    val filterTasks: FilterTasks,
+    val addCategory: AddCategory,
+    val deleteCategory: DeleteCategory,
+    val updateCategory: UpdateCategory
 )

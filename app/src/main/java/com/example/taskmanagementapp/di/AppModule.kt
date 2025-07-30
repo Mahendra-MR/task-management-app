@@ -3,6 +3,7 @@ package com.example.taskmanagementapp.di
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
+import com.example.taskmanagementapp.data.local.MIGRATION_1_2
 import com.example.taskmanagementapp.data.local.TaskDatabase
 import com.example.taskmanagementapp.data.remote.QuoteRemoteSource
 import com.example.taskmanagementapp.data.remote.api.QuoteService
@@ -37,7 +38,8 @@ object AppModule {
         val quoteRemoteSource = QuoteRemoteSource(api)
 
         taskRepository = TaskRepositoryImpl(
-            dao = database.taskDao(),
+            taskDao = database.taskDao(),
+            categoryDao = database.categoryDao(),
             quoteRemoteSource = quoteRemoteSource
         )
 
@@ -52,7 +54,9 @@ object AppModule {
             context.applicationContext,
             TaskDatabase::class.java,
             "task_db"
-        ).build()
+        )
+            .addMigrations(MIGRATION_1_2)
+            .build()
     }
 
     private fun provideQuoteApi(): QuoteService {
@@ -90,7 +94,10 @@ object AppModule {
             getTaskById = GetTaskById(repo),
             getQuote = GetQuote(repo),
             getCategories = GetCategories(repo),
-            filterTasks = FilterTasks(repo)
+            filterTasks = FilterTasks(repo),
+            addCategory = AddCategory(repo),
+            deleteCategory = DeleteCategory(repo),
+            updateCategory = UpdateCategory(repo)
         )
     }
 }

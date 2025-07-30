@@ -33,4 +33,8 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE isCompleted = :status")
     fun getTasksByStatus(status: Boolean): Flow<List<TaskEntity>>
+
+    // New method for updating task categories
+    @Query("UPDATE tasks SET category = :newCategory WHERE category = :oldCategory")
+    suspend fun updateTasksCategory(oldCategory: String, newCategory: String)
 }

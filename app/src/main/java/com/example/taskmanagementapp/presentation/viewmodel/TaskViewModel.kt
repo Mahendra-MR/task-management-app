@@ -83,12 +83,14 @@ class TaskViewModel(
     fun addTask(task: Task) {
         viewModelScope.launch {
             useCases.addTask(task)
+            loadCategories() // Reload categories in case a new one was added
         }
     }
 
     fun updateTask(task: Task) {
         viewModelScope.launch {
             useCases.updateTask(task)
+            loadCategories() // Reload categories in case a new one was added
         }
     }
 
@@ -131,5 +133,40 @@ class TaskViewModel(
 
     fun retryLoadQuote() {
         loadQuote()
+    }
+
+    // Category management methods
+    fun addCategory(category: String) {
+        viewModelScope.launch {
+            try {
+                useCases.addCategory(category)
+                loadCategories()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to add category: ${e.message}", e)
+            }
+        }
+    }
+
+    fun deleteCategory(category: String) {
+        viewModelScope.launch {
+            try {
+                useCases.deleteCategory(category)
+                loadCategories()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to delete category: ${e.message}", e)
+            }
+        }
+    }
+
+    fun updateCategory(oldCategory: String, newCategory: String) {
+        viewModelScope.launch {
+            try {
+                useCases.updateCategory(oldCategory, newCategory)
+                loadCategories()
+                loadTasks() // Reload tasks to show updated categories
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to update category: ${e.message}", e)
+            }
+        }
     }
 }

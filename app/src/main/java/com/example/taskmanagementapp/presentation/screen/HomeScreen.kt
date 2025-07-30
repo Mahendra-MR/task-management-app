@@ -52,12 +52,12 @@ fun HomeScreen(
             ) {
                 Text("Add New Task")
             }
-//            Button(
-//                onClick = { navController.navigate(Routes.CATEGORIES) },
-//                modifier = Modifier.fillMaxWidth()
-//            ) {
-//                Text("Manage Categories")
-//            }
+            Button(
+                onClick = { navController.navigate(Routes.CATEGORIES) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Manage Categories")
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

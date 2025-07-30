@@ -25,4 +25,11 @@ interface TaskRepository {
     fun getTasksByStatus(completed: Boolean): Flow<List<Task>>
 
     suspend fun getRandomQuote(): Quote
+
+    // New category management methods
+    suspend fun addCategory(category: String)
+
+    suspend fun deleteCategory(category: String)
+
+    suspend fun updateCategory(oldCategory: String, newCategory: String)
 }
