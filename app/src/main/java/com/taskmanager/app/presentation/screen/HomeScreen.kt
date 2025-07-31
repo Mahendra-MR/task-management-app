@@ -23,6 +23,11 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    LaunchedEffect(Unit) {
+        // Only load quote when HomeScreen is actually displayed
+        viewModel.loadQuote()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

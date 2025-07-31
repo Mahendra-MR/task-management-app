@@ -31,8 +31,9 @@ class TaskViewModel(
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
     init {
+        // Only load essential data - NO QUOTE LOADING HERE!
         refreshData()
-        loadQuote()
+        // loadQuote() - REMOVED FROM INIT!
     }
 
     fun loadTasks() {
@@ -46,6 +47,7 @@ class TaskViewModel(
         }
     }
 
+    // Quote loading method - now only called when needed
     fun loadQuote() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }

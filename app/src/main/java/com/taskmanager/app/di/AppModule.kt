@@ -19,12 +19,20 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
+import com.taskmanager.app.BuildConfig
 
 object AppModule {
 
     private var isInitialized = false
 
+    // Lazy initialization for better performance
+    private val database by lazy { provideDatabase(context!!) }
+    private val api by lazy { provideQuoteApi() }
+    private val quoteRemoteSource by lazy { QuoteRemoteSource(api) }
+
     private lateinit var taskRepository: TaskRepository
+    private var context: Context? = null
+
     lateinit var taskUseCases: TaskUseCases
         private set
 
@@ -34,17 +42,14 @@ object AppModule {
     fun init(context: Context) {
         if (isInitialized) return
 
-        val database = provideDatabase(context)
-        val api = provideQuoteApi()
-        val quoteRemoteSource = QuoteRemoteSource(api)
+        this.context = context.applicationContext
 
-        val quoteDao = database.quoteDao()
-
+        // Initialize repository with lazy-loaded dependencies
         taskRepository = TaskRepositoryImpl(
             taskDao = database.taskDao(),
             categoryDao = database.categoryDao(),
             quoteRemoteSource = quoteRemoteSource,
-            quoteDao = quoteDao // Injected here
+            quoteDao = database.quoteDao()
         )
 
         taskUseCases = provideUseCases(taskRepository)
@@ -60,6 +65,9 @@ object AppModule {
             "task_db"
         )
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            // Add database optimizations
+            .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .enableMultiInstanceInvalidation()
             .build()
     }
 
@@ -68,21 +76,32 @@ object AppModule {
         val json = Json {
             ignoreUnknownKeys = true
             isLenient = true
+            coerceInputValues = true // Handle null values gracefully
         }
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            // Use BASIC level in production for better performance
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.BASIC
+            }
         }
 
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            // Optimize timeouts for better performance
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            // Add connection pooling
+            .connectionPool(okhttp3.ConnectionPool(5, 5, TimeUnit.MINUTES))
+            // Enable response caching
+            .cache(okhttp3.Cache(context!!.cacheDir, 10 * 1024 * 1024)) // 10MB cache
             .build()
 
         return Retrofit.Builder()
-            .baseUrl("https://quotable-proxy.onrender.com/") //Render Proxy URL
+            .baseUrl("https://quotable-proxy.onrender.com/")
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
