@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.taskmanagementapp"
+    namespace = "com.taskmanager.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.taskmanagementapp"
+        applicationId = "com.taskmanager.app"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -81,6 +81,8 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("androidx.compose.material:material-icons-extended:1.6.1")
+    //row flow
+    implementation("androidx.compose.foundation:foundation:1.4.3")
 
     // Testing
     testImplementation(libs.junit)

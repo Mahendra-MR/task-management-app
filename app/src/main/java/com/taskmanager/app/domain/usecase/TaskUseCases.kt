@@ -1,0 +1,15 @@
+package com.taskmanager.app.domain.usecase
+
+data class TaskUseCases(
+    val addTask: AddTask,
+    val updateTask: UpdateTask,
+    val deleteTask: DeleteTask,
+    val getAllTasks: GetAllTasks,
+    val getTaskById: GetTaskById,
+    val getQuote: GetQuote,
+    val getCategories: GetCategories,
+    val filterTasks: FilterTasks,
+    val addCategory: AddCategory,
+    val deleteCategory: DeleteCategory,
+    val updateCategory: UpdateCategory
+)
