@@ -34,13 +34,13 @@ A modern and efficient Android application that helps users manage their daily t
 ![Home Screen](./screenshots/Home.jpeg)
 
 ### Task List
-![Task List](./screenshots/"Task List.jpeg")
+![Task List](./screenshots/Task_list.jpeg)
 
 ### Add Task
-![Add Task](./screenshots/"Add Task.jpeg")
+![Add Task](./screenshots/Add_task.jpeg)
 
 ### Task Details
-![Task Details](./screenshots/"Task Details.jpeg")
+![Task Details](./screenshots/Task_details.jpeg)
 
 ### Category Manager
 ![Categories](./screenshots/Categories.jpeg)
@@ -53,16 +53,18 @@ ___
 ## Architecture
 
 The app uses Clean Architecture, dividing the codebase into multiple clear layers:
+   ```bash
 
 com.taskmanager.app/
 │
-├── data/ # Data sources (Room DB, Retrofit)
-├── domain/ # Business logic, UseCases, and models
-├── di/ # Dependency injection setup (AppModule)
-├── presentation/ # ViewModels, Screens, and Composables
-├── ui/ # Theming and Material 3 setup
+├── data/           # Data sources (Room DB, Retrofit)
+├── domain/         # Business logic, UseCases, and models
+├── di/             # Dependency injection setup (AppModule)
+├── presentation/   # ViewModels, Screens, and Composables
+├── ui/             # Theming and Material 3 setup
 └── MainActivity.kt
 
+````
 
 Each layer has a specific responsibility, helping keep the codebase scalable and maintainable.
 
@@ -109,6 +111,7 @@ If the device is offline or the proxy fails, the app loads the **last cached quo
 - Quotes are cached locally — if the API is unreachable, the last quote is displayed
 
 ## Folder Structure Overview
+```bash
 
 ├── data/
 │   ├── local/      # DAOs, Entities, Room DB
@@ -130,5 +133,4 @@ If the device is offline or the proxy fails, the app loads the **last cached quo
 ├── ui/             # Theme and Material color setup
 └── MainActivity.kt # Entry point
 
-
-
+```
