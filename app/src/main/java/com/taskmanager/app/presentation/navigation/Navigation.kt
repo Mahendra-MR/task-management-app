@@ -19,6 +19,8 @@ object Routes {
     const val EDIT_TASK = "edit_task"
     const val TASK_DETAILS = "task_details"
     const val CATEGORIES = "categories"
+    const val ADD_TASK_FROM_CATEGORIES = "add_task_from_categories"
+    const val EDIT_TASK_FROM_CATEGORIES = "edit_task_from_categories"
 }
 
 @Composable
@@ -68,13 +70,30 @@ fun AppNavigation(viewModel: TaskViewModel) {
             )
         }
 
+        // 🔹 Add Task (regular flow)
         composable(Routes.ADD_TASK) {
             AddEditTaskScreen(
                 viewModel = viewModel,
-                onSave = { navController.popBackStack() }
+                onSave = { navController.popBackStack() },
+                onNavigateToCategories = { navController.navigate(Routes.ADD_TASK_FROM_CATEGORIES) }
             )
         }
 
+        // 🔹 Add Task from Categories (returns to add task after category management)
+        composable(Routes.ADD_TASK_FROM_CATEGORIES) {
+            AddEditTaskScreen(
+                viewModel = viewModel,
+                onSave = {
+                    // Navigate back to home or task list after saving
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                    }
+                },
+                onNavigateToCategories = { navController.navigate(Routes.CATEGORIES) }
+            )
+        }
+
+        // 🔹 Edit Task (regular flow)
         composable(
             "${Routes.EDIT_TASK}/{task}",
             arguments = listOf(navArgument("task") { type = NavType.StringType })
@@ -84,7 +103,33 @@ fun AppNavigation(viewModel: TaskViewModel) {
             AddEditTaskScreen(
                 viewModel = viewModel,
                 taskToEdit = task,
-                onSave = { navController.popBackStack() }
+                onSave = { navController.popBackStack() },
+                onNavigateToCategories = {
+                    // Store the task data and navigate to categories
+                    val json = Uri.encode(gson.toJson(task))
+                    navController.navigate("${Routes.EDIT_TASK_FROM_CATEGORIES}/$json")
+                }
+            )
+        }
+
+        // 🔹 Edit Task from Categories (returns to edit task after category management)
+        composable(
+            "${Routes.EDIT_TASK_FROM_CATEGORIES}/{task}",
+            arguments = listOf(navArgument("task") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val taskJson = backStackEntry.arguments?.getString("task")
+            val task = gson.fromJson(taskJson, Task::class.java)
+            AddEditTaskScreen(
+                viewModel = viewModel,
+                taskToEdit = task,
+                onSave = {
+                    // Navigate back to task details after saving
+                    val json = Uri.encode(gson.toJson(task))
+                    navController.navigate("${Routes.TASK_DETAILS}/$json") {
+                        popUpTo(Routes.TASK_LIST) { inclusive = false }
+                    }
+                },
+                onNavigateToCategories = { navController.navigate(Routes.CATEGORIES) }
             )
         }
 

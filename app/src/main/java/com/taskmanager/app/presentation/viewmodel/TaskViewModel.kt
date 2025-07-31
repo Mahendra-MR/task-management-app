@@ -8,8 +8,8 @@ import com.taskmanager.app.domain.model.Quote
 import com.taskmanager.app.domain.usecase.TaskUseCases
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.net.UnknownHostException
 import java.io.IOException
+import java.net.UnknownHostException
 
 data class TaskUiState(
     val tasks: List<Task> = emptyList(),
@@ -31,9 +31,8 @@ class TaskViewModel(
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
     init {
-        loadTasks()
+        refreshData()
         loadQuote()
-        loadCategories()
     }
 
     fun loadTasks() {
@@ -49,109 +48,140 @@ class TaskViewModel(
 
     fun loadQuote() {
         viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+
             try {
-                _state.update { it.copy(isLoading = true, error = null) }
-                Log.d("TaskViewModel", "Starting to load quote...")
-
+                Log.d("TaskViewModel", "Loading quote...")
                 val quote = useCases.getQuote()
-                Log.d("TaskViewModel", "Quote loaded successfully: ${quote.content}")
+                Log.d("TaskViewModel", "Quote loaded: ${quote.content}")
 
-                _state.update { it.copy(quote = quote, isLoading = false, error = null) }
+                _state.update { it.copy(quote = quote, isLoading = false) }
             } catch (e: UnknownHostException) {
-                Log.e("TaskViewModel", "No internet", e)
-                _state.update { it.copy(error = "No internet connection", isLoading = false) }
+                handleError("No internet connection", e)
             } catch (e: IOException) {
-                Log.e("TaskViewModel", "Network error", e)
-                _state.update { it.copy(error = "Network error. Try again.", isLoading = false) }
+                handleError("Network error. Try again.", e)
             } catch (e: Exception) {
-                Log.e("TaskViewModel", "Unexpected error", e)
-                _state.update { it.copy(error = "Failed to load quote: ${e.message}", isLoading = false) }
+                handleError("Unexpected error: ${e.message}", e)
             }
         }
     }
 
-    fun retryLoadQuote() {
-        loadQuote()
+    private fun handleError(message: String, exception: Exception) {
+        Log.e("TaskViewModel", message, exception)
+        _state.update { it.copy(error = message, isLoading = false) }
     }
+
+    fun retryLoadQuote() = loadQuote()
 
     fun loadCategories() {
         viewModelScope.launch {
-            val categories = useCases.getCategories()
-            _state.update { it.copy(categories = categories) }
+            try {
+                val categories = useCases.getCategories()
+                _state.update { it.copy(categories = categories) }
+                Log.d("TaskViewModel", "Categories loaded: $categories")
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to load categories", e)
+            }
         }
     }
 
     fun addTask(task: Task) {
         viewModelScope.launch {
-            useCases.addTask(task)
-            loadTasks()
-            loadCategories()
+            try {
+                useCases.addTask(task)
+                refreshData()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to add task", e)
+            }
         }
     }
 
     fun updateTask(task: Task) {
         viewModelScope.launch {
-            useCases.updateTask(task)
-            loadTasks()
-            loadCategories()
+            try {
+                useCases.updateTask(task)
+                refreshData()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to update task", e)
+            }
         }
     }
 
     fun deleteTask(task: Task) {
         viewModelScope.launch {
-            useCases.deleteTask(task)
-            loadTasks()
+            try {
+                useCases.deleteTask(task)
+                loadTasks()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to delete task", e)
+            }
         }
     }
 
     fun getTaskById(id: Int) {
         viewModelScope.launch {
-            val task = useCases.getTaskById(id)
-            _state.update { it.copy(selectedTask = task) }
+            try {
+                val task = useCases.getTaskById(id)
+                _state.update { it.copy(selectedTask = task) }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to get task by ID", e)
+            }
         }
     }
 
     fun filterByCategory(category: String) {
         viewModelScope.launch {
-            useCases.filterTasks.byCategory(category)
-                .distinctUntilChanged()
-                .collect { filtered ->
-                    _tasks.value = filtered
-                    _state.update { it.copy(tasks = filtered) }
-                }
+            try {
+                useCases.filterTasks.byCategory(category)
+                    .distinctUntilChanged()
+                    .collect { filtered ->
+                        _tasks.value = filtered
+                        _state.update { it.copy(tasks = filtered) }
+                    }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to filter by category", e)
+            }
         }
     }
 
     fun filterByPriority(priority: String) {
         viewModelScope.launch {
-            useCases.filterTasks.byPriority(priority)
-                .distinctUntilChanged()
-                .collect { filtered ->
-                    _tasks.value = filtered
-                    _state.update { it.copy(tasks = filtered) }
-                }
+            try {
+                useCases.filterTasks.byPriority(priority)
+                    .distinctUntilChanged()
+                    .collect { filtered ->
+                        _tasks.value = filtered
+                        _state.update { it.copy(tasks = filtered) }
+                    }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to filter by priority", e)
+            }
         }
     }
 
     fun filterByStatus(isCompleted: Boolean) {
         viewModelScope.launch {
-            useCases.filterTasks.byStatus(isCompleted)
-                .distinctUntilChanged()
-                .collect { filtered ->
-                    _tasks.value = filtered
-                    _state.update { it.copy(tasks = filtered) }
-                }
+            try {
+                useCases.filterTasks.byStatus(isCompleted)
+                    .distinctUntilChanged()
+                    .collect { filtered ->
+                        _tasks.value = filtered
+                        _state.update { it.copy(tasks = filtered) }
+                    }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to filter by status", e)
+            }
         }
     }
 
-    // Category management methods
     fun addCategory(category: String) {
         viewModelScope.launch {
             try {
                 useCases.addCategory(category)
                 loadCategories()
+                Log.d("TaskViewModel", "Category added: $category")
             } catch (e: Exception) {
-                Log.e("TaskViewModel", "Failed to add category: ${e.message}", e)
+                Log.e("TaskViewModel", "Failed to add category", e)
             }
         }
     }
@@ -161,8 +191,9 @@ class TaskViewModel(
             try {
                 useCases.deleteCategory(category)
                 loadCategories()
+                Log.d("TaskViewModel", "Category deleted: $category")
             } catch (e: Exception) {
-                Log.e("TaskViewModel", "Failed to delete category: ${e.message}", e)
+                Log.e("TaskViewModel", "Failed to delete category", e)
             }
         }
     }
@@ -171,11 +202,16 @@ class TaskViewModel(
         viewModelScope.launch {
             try {
                 useCases.updateCategory(oldCategory, newCategory)
-                loadCategories()
-                loadTasks()
+                refreshData()
+                Log.d("TaskViewModel", "Category updated from $oldCategory to $newCategory")
             } catch (e: Exception) {
-                Log.e("TaskViewModel", "Failed to update category: ${e.message}", e)
+                Log.e("TaskViewModel", "Failed to update category", e)
             }
         }
+    }
+
+    fun refreshData() {
+        loadTasks()
+        loadCategories()
     }
 }

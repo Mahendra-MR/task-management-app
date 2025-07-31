@@ -19,7 +19,7 @@ import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 fun CategoryManagementScreen(
     viewModel: TaskViewModel,
     onBack: () -> Unit,
-    onViewTasksForCategory: (String) -> Unit // ✅ NEW: handle category click to view tasks
+    onViewTasksForCategory: (String) -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
@@ -28,6 +28,11 @@ fun CategoryManagementScreen(
     var selectedCategory by remember { mutableStateOf("") }
     var newCategoryName by remember { mutableStateOf("") }
 
+    // Refresh categories when screen loads
+    LaunchedEffect(Unit) {
+        viewModel.loadCategories()
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -35,7 +40,11 @@ fun CategoryManagementScreen(
         TopAppBar(
             title = { Text("Manage Categories") },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    // Refresh data before going back
+                    viewModel.refreshData()
+                    onBack()
+                }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             },
@@ -83,7 +92,7 @@ fun CategoryManagementScreen(
             ) {
                 item {
                     Text(
-                        text = "Your Categories",
+                        text = "Your Categories (${state.categories.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -93,7 +102,7 @@ fun CategoryManagementScreen(
                 items(state.categories) { category ->
                     CategoryItem(
                         category = category,
-                        onClick = { onViewTasksForCategory(category) }, // ✅ navigate on click
+                        onClick = { onViewTasksForCategory(category) },
                         onEdit = {
                             selectedCategory = category
                             newCategoryName = category
@@ -134,9 +143,13 @@ fun CategoryManagementScreen(
                 if (newCategoryName.trim().isNotBlank()) {
                     viewModel.addCategory(newCategoryName.trim())
                     showAddDialog = false
+                    newCategoryName = ""
                 }
             },
-            onDismiss = { showAddDialog = false }
+            onDismiss = {
+                showAddDialog = false
+                newCategoryName = ""
+            }
         )
     }
 
@@ -146,12 +159,16 @@ fun CategoryManagementScreen(
             categoryName = newCategoryName,
             onCategoryNameChange = { newCategoryName = it },
             onConfirm = {
-                if (newCategoryName.trim().isNotBlank() && newCategoryName != selectedCategory) {
+                if (newCategoryName.trim().isNotBlank() && newCategoryName.trim() != selectedCategory) {
                     viewModel.updateCategory(selectedCategory, newCategoryName.trim())
                     showEditDialog = false
+                    newCategoryName = ""
                 }
             },
-            onDismiss = { showEditDialog = false }
+            onDismiss = {
+                showEditDialog = false
+                newCategoryName = ""
+            }
         )
     }
 
@@ -159,7 +176,7 @@ fun CategoryManagementScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Category") },
-            text = { Text("Are you sure you want to delete \"$selectedCategory\"? This will not delete its tasks.") },
+            text = { Text("Are you sure you want to delete \"$selectedCategory\"? Tasks in this category will keep their category name, but the category will be removed from the list.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteCategory(selectedCategory)
@@ -187,7 +204,7 @@ private fun CategoryItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() } // ✅ Make entire card clickable
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
@@ -200,21 +217,40 @@ private fun CategoryItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = category,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                Icon(
+                    Icons.Default.Category,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Tap to view tasks",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
@@ -233,21 +269,27 @@ private fun AddEditCategoryDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = categoryName,
-                onValueChange = onCategoryNameChange,
-                label = { Text("Category Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            Column {
+                OutlinedTextField(
+                    value = categoryName,
+                    onValueChange = onCategoryNameChange,
+                    label = { Text("Category Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("Category names should be descriptive and unique") }
+                )
+            }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = categoryName.trim().isNotBlank()) {
+            Button(
+                onClick = onConfirm,
+                enabled = categoryName.trim().isNotBlank()
+            ) {
                 Text("Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }

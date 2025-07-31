@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.taskmanager.app.domain.model.Priority
 import com.taskmanager.app.domain.model.Task
+import com.taskmanager.app.presentation.components.CategoryDropdown
 import com.taskmanager.app.presentation.components.PriorityDropdown
 import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
@@ -29,10 +30,12 @@ import java.util.*
 fun AddEditTaskScreen(
     viewModel: TaskViewModel,
     taskToEdit: Task? = null,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onNavigateToCategories: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val state by viewModel.state.collectAsState()
 
     // Date and time formatters
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
@@ -59,6 +62,11 @@ fun AddEditTaskScreen(
             selectedDate = calendar.clone() as Calendar
             selectedTime = calendar.clone() as Calendar
         }
+    }
+
+    // Load categories when screen opens
+    LaunchedEffect(Unit) {
+        viewModel.loadCategories()
     }
 
     // Computed values
@@ -159,13 +167,13 @@ fun AddEditTaskScreen(
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next)
         )
 
-        // Category Field
-        OutlinedTextField(
-            value = category,
-            onValueChange = { category = it },
-            label = { Text("Category *") },
+        // Category Dropdown
+        CategoryDropdown(
+            categories = state.categories,
+            selectedCategory = category,
+            onCategorySelected = { category = it },
+            onAddCategoryClick = onNavigateToCategories,
             modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
             isError = showValidationError && category.isBlank(),
             supportingText = if (showValidationError && category.isBlank()) {
                 { Text("Category is required") }
