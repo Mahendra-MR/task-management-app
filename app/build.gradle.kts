@@ -20,10 +20,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            isDebuggable = true
-            applicationIdSuffix = ".debug"
-        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -44,7 +40,6 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true  // This enables BuildConfig generation
     }
 
     composeOptions {
@@ -84,8 +79,8 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("androidx.compose.material:material-icons-extended:1.6.1")
 
+    implementation("androidx.compose.material:material-icons-extended:1.6.1")
     //row flow
     implementation("androidx.compose.foundation:foundation:1.4.3")
 
