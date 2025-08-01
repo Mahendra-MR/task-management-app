@@ -21,6 +21,7 @@ fun TaskListScreen(
     onEditTask: (Task) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+    val allTasks by viewModel.tasks.collectAsState()
 
     var filterState by remember(categoryFilter) {
         mutableStateOf(
@@ -34,12 +35,14 @@ fun TaskListScreen(
             filterState.selectedPriority != null ||
             filterState.selectedStatus != null
 
-    val filteredTasks = remember(state.tasks, filterState) {
-        state.tasks.filter { task ->
-            val categoryMatch = filterState.selectedCategory?.let { task.category == it } ?: true
-            val priorityMatch = filterState.selectedPriority?.let { task.priority == it } ?: true
-            val statusMatch = filterState.selectedStatus?.let { task.isCompleted == it } ?: true
-            categoryMatch && priorityMatch && statusMatch
+    val filteredTasks by remember(allTasks, filterState) {
+        derivedStateOf {
+            allTasks.filter { task ->
+                val categoryMatch = filterState.selectedCategory?.let { task.category == it } ?: true
+                val priorityMatch = filterState.selectedPriority?.let { task.priority == it } ?: true
+                val statusMatch = filterState.selectedStatus?.let { task.isCompleted == it } ?: true
+                categoryMatch && priorityMatch && statusMatch
+            }
         }
     }
 
@@ -48,7 +51,6 @@ fun TaskListScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-
         Text(
             text = "My Tasks",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
@@ -64,15 +66,21 @@ fun TaskListScreen(
         )
 
         when {
-            state.tasks.isEmpty() -> EmptyTaskState()
+            allTasks.isEmpty() -> EmptyTaskState()
             filteredTasks.isEmpty() -> EmptyFilterState { filterState = FilterState() }
-            else -> TaskListContent(
-                tasks = filteredTasks,
-                hasFilters = hasFilters,
-                onTaskClick = onTaskClick,
-                onEditTask = onEditTask,
-                onToggleStatus = { updated -> viewModel.updateTask(updated) }
-            )
+            else -> {
+                val pendingTasks = filteredTasks.filter { !it.isCompleted }
+                val completedTasks = filteredTasks.filter { it.isCompleted }
+
+                TaskListContent(
+                    pendingTasks = pendingTasks,
+                    completedTasks = completedTasks,
+                    hasFilters = hasFilters,
+                    onTaskClick = onTaskClick,
+                    onEditTask = onEditTask,
+                    onToggleStatus = { updated -> viewModel.updateTask(updated) }
+                )
+            }
         }
     }
 }

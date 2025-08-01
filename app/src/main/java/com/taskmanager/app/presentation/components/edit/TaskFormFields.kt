@@ -1,21 +1,17 @@
 package com.taskmanager.app.presentation.components.edit
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.taskmanager.app.domain.model.Priority
 import com.taskmanager.app.presentation.components.CategoryDropdown
 import com.taskmanager.app.presentation.components.PriorityDropdown
-import java.util.Calendar
+import java.util.*
 
 @Composable
 fun TaskFormFields(
@@ -68,22 +64,18 @@ fun TaskFormFields(
         } else null
     )
 
+    // 📅 Date Field
     OutlinedTextField(
         value = selectedDateText,
-        onValueChange = { onDateClick() },
+        onValueChange = {},
         label = { Text("Due Date *") },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onDateClick() }, // 🔁 cleaner & faster
         readOnly = true,
         trailingIcon = {
             IconButton(onClick = onDateClick) {
                 Icon(Icons.Default.CalendarToday, contentDescription = "Select Date")
-            }
-        },
-        interactionSource = remember { MutableInteractionSource() }.apply {
-            LaunchedEffect(this) {
-                interactions.collect {
-                    if (it is PressInteraction.Press) onDateClick()
-                }
             }
         },
         isError = showValidationError && selectedDate == null,
@@ -92,22 +84,18 @@ fun TaskFormFields(
         } else null
     )
 
+    // ⏰ Time Field
     OutlinedTextField(
         value = selectedTimeText,
-        onValueChange = { onTimeClick() },
+        onValueChange = {},
         label = { Text("Due Time *") },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onTimeClick() }, // 🔁 cleaner & faster
         readOnly = true,
         trailingIcon = {
             IconButton(onClick = onTimeClick) {
                 Icon(Icons.Default.AccessTime, contentDescription = "Select Time")
-            }
-        },
-        interactionSource = remember { MutableInteractionSource() }.apply {
-            LaunchedEffect(this) {
-                interactions.collect {
-                    if (it is PressInteraction.Press) onTimeClick()
-                }
             }
         },
         isError = showValidationError && selectedTime == null,

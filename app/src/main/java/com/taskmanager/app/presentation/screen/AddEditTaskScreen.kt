@@ -2,6 +2,7 @@ package com.taskmanager.app.presentation.screen
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,13 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.taskmanager.app.domain.model.*
-import com.taskmanager.app.presentation.components.edit.CompletionCheckbox
-import com.taskmanager.app.presentation.components.edit.SaveButton
-import com.taskmanager.app.presentation.components.edit.ValidationMessage
+import com.taskmanager.app.presentation.components.edit.*
 import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
+import androidx.compose.runtime.saveable.rememberSaveable
 import java.util.*
-import com.taskmanager.app.presentation.components.edit.*
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditTaskScreen(
@@ -33,12 +33,12 @@ fun AddEditTaskScreen(
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
 
-    var title by remember { mutableStateOf(taskToEdit?.title ?: "") }
-    var description by remember { mutableStateOf(taskToEdit?.description ?: "") }
-    var category by remember { mutableStateOf(taskToEdit?.category ?: "") }
-    var priority by remember { mutableStateOf(taskToEdit?.priority ?: Priority.MEDIUM) }
-    var isCompleted by remember { mutableStateOf(taskToEdit?.isCompleted ?: false) }
-    var showValidationError by remember { mutableStateOf(false) }
+    var title by rememberSaveable { mutableStateOf(taskToEdit?.title ?: "") }
+    var description by rememberSaveable { mutableStateOf(taskToEdit?.description ?: "") }
+    var category by rememberSaveable { mutableStateOf(taskToEdit?.category ?: "") }
+    var priority by rememberSaveable { mutableStateOf(taskToEdit?.priority ?: Priority.MEDIUM) }
+    var isCompleted by rememberSaveable { mutableStateOf(taskToEdit?.isCompleted ?: false) }
+    var showValidationError by rememberSaveable { mutableStateOf(false) }
 
     var selectedDate by remember { mutableStateOf<Calendar?>(null) }
     var selectedTime by remember { mutableStateOf<Calendar?>(null) }
@@ -51,27 +51,43 @@ fun AddEditTaskScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.loadCategories() }
+    // ✅ This is now valid again since we made it public
+    LaunchedEffect(Unit) {
+        viewModel.loadCategories()
+    }
+
+    val dueDateMillis by remember(selectedDate, selectedTime) {
+        derivedStateOf {
+            if (selectedDate != null && selectedTime != null) {
+                (selectedDate!!.clone() as Calendar).apply {
+                    set(Calendar.HOUR_OF_DAY, selectedTime!!.get(Calendar.HOUR_OF_DAY))
+                    set(Calendar.MINUTE, selectedTime!!.get(Calendar.MINUTE))
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            } else 0L
+        }
+    }
 
     val selectedDateText = selectedDate?.let { dateFormat.format(it.time) } ?: ""
     val selectedTimeText = selectedTime?.let { timeFormat.format(it.time) } ?: ""
-    val dueDateMillis = if (selectedDate != null && selectedTime != null) {
-        (selectedDate!!.clone() as Calendar).apply {
-            set(Calendar.HOUR_OF_DAY, selectedTime!!.get(Calendar.HOUR_OF_DAY))
-            set(Calendar.MINUTE, selectedTime!!.get(Calendar.MINUTE))
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    } else 0L
 
     val onDateClick = {
         val current = selectedDate ?: Calendar.getInstance()
         DatePickerDialog(
             context,
-            { _, y, m, d -> selectedDate = Calendar.getInstance().apply {
-                set(Calendar.YEAR, y); set(Calendar.MONTH, m); set(Calendar.DAY_OF_MONTH, d)
-            }.also { if (selectedTime == null) selectedTime = Calendar.getInstance() } },
-            current.get(Calendar.YEAR), current.get(Calendar.MONTH), current.get(Calendar.DAY_OF_MONTH)
+            { _, y, m, d ->
+                selectedDate = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, y)
+                    set(Calendar.MONTH, m)
+                    set(Calendar.DAY_OF_MONTH, d)
+                }.also {
+                    if (selectedTime == null) selectedTime = Calendar.getInstance()
+                }
+            },
+            current.get(Calendar.YEAR),
+            current.get(Calendar.MONTH),
+            current.get(Calendar.DAY_OF_MONTH)
         ).show()
     }
 
@@ -79,16 +95,27 @@ fun AddEditTaskScreen(
         val current = selectedTime ?: Calendar.getInstance()
         TimePickerDialog(
             context,
-            { _, h, m -> selectedTime = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m)
-                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }.also { if (selectedDate == null) selectedDate = Calendar.getInstance() } },
-            current.get(Calendar.HOUR_OF_DAY), current.get(Calendar.MINUTE), false
+            { _, h, m ->
+                selectedTime = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, h)
+                    set(Calendar.MINUTE, m)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.also {
+                    if (selectedDate == null) selectedDate = Calendar.getInstance()
+                }
+            },
+            current.get(Calendar.HOUR_OF_DAY),
+            current.get(Calendar.MINUTE),
+            false
         ).show()
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
@@ -138,7 +165,8 @@ fun AddEditTaskScreen(
                         category = category.trim(),
                         isCompleted = isCompleted
                     )
-                    if (taskToEdit != null) viewModel.updateTask(task) else viewModel.addTask(task)
+                    if (taskToEdit != null) viewModel.updateTask(task)
+                    else viewModel.addTask(task)
                     onSave()
                 }
             }

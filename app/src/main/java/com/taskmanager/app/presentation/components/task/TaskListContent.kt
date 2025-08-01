@@ -12,7 +12,8 @@ import com.taskmanager.app.domain.model.Task
 
 @Composable
 fun TaskListContent(
-    tasks: List<Task>,
+    pendingTasks: List<Task>,
+    completedTasks: List<Task>,
     hasFilters: Boolean,
     onTaskClick: (Task) -> Unit,
     onEditTask: (Task) -> Unit,
@@ -23,44 +24,42 @@ fun TaskListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (!hasFilters) {
-            val groupedByStatus = listOf(
-                "Pending" to tasks.filter { !it.isCompleted },
-                "Completed" to tasks.filter { it.isCompleted }
-            )
+            if (pendingTasks.isNotEmpty()) {
+                item {
+                    SectionHeader("Pending (${pendingTasks.size})")
+                }
+                items(pendingTasks, key = { it.id }) { task ->
+                    EnhancedTaskCard(
+                        task = task,
+                        onClick = { onTaskClick(task) },
+                        onEdit = { onEditTask(task) },
+                        onStatusToggle = { onToggleStatus(it.copy(isCompleted = true)) }
+                    )
+                }
+            }
 
-            groupedByStatus.forEach { (label, groupedTasks) ->
-                if (groupedTasks.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "$label (${groupedTasks.size})",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                        )
-                    }
-                    items(groupedTasks) { task ->
-                        EnhancedTaskCard(
-                            task = task,
-                            onClick = { onTaskClick(task) },
-                            onEdit = { onEditTask(task) },
-                            onStatusToggle = {
-                                onToggleStatus(it.copy(isCompleted = !it.isCompleted))
-                            }
-                        )
-                    }
+            if (completedTasks.isNotEmpty()) {
+                item {
+                    SectionHeader("Completed (${completedTasks.size})")
+                }
+                items(completedTasks, key = { it.id }) { task ->
+                    EnhancedTaskCard(
+                        task = task,
+                        onClick = { onTaskClick(task) },
+                        onEdit = { onEditTask(task) },
+                        onStatusToggle = { onToggleStatus(it.copy(isCompleted = false)) }
+                    )
                 }
             }
         } else {
-            val groupedByCategory = tasks.groupBy { it.category }
+            val groupedByCategory = (pendingTasks + completedTasks)
+                .groupBy { it.category }
 
             groupedByCategory.forEach { (category, groupedTasks) ->
                 item {
-                    Text(
-                        text = "$category (${groupedTasks.size})",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                    )
+                    SectionHeader("$category (${groupedTasks.size})")
                 }
-                items(groupedTasks) { task ->
+                items(groupedTasks, key = { it.id }) { task ->
                     EnhancedTaskCard(
                         task = task,
                         onClick = { onTaskClick(task) },
@@ -73,4 +72,13 @@ fun TaskListContent(
             }
         }
     }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+    )
 }

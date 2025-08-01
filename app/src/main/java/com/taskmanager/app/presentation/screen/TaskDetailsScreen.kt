@@ -29,17 +29,16 @@ fun TaskDetailsScreen(
     val scrollState = rememberScrollState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Create a local mutable task state to update UI on quick action toggle
-    var localTask by remember { mutableStateOf(task) }
-
-    // If task passed as prop changes, update localTask
-    LaunchedEffect(task) {
-        localTask = task
+    // Trigger task load on screen open
+    LaunchedEffect(task.id) {
+        viewModel.getTaskById(task.id)
     }
 
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault()) }
+    val state by viewModel.state.collectAsState()
+    val selectedTask = state.selectedTask ?: return
 
-    val priorityColor = when (localTask.priority) {
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault()) }
+    val priorityColor = when (selectedTask.priority) {
         Priority.HIGH -> Color.Red
         Priority.MEDIUM -> Color(0xFFFF9800)
         Priority.LOW -> Color(0xFF4CAF50)
@@ -74,67 +73,24 @@ fun TaskDetailsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Status
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (localTask.isCompleted)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (localTask.isCompleted) Icons.Default.CheckCircle else Icons.Default.Schedule,
-                        contentDescription = null,
-                        tint = if (localTask.isCompleted)
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = if (localTask.isCompleted) "Completed" else "Pending",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = if (localTask.isCompleted)
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
+            StatusCard(selectedTask)
 
             // Title
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Title", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(localTask.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                }
-            }
+            InfoCard("Title", selectedTask.title)
 
             // Description
-            if (localTask.description.isNotBlank()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Description", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(localTask.description, style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
+            if (selectedTask.description.isNotBlank()) {
+                InfoCard("Description", selectedTask.description)
             }
 
-            // Details
+            // Task Details
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Task Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(12.dp))
-                    DetailRow("Due Date", dateFormat.format(Date(localTask.dueDate)))
+                    DetailRow("Due Date", dateFormat.format(Date(selectedTask.dueDate)))
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Priority
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -143,7 +99,7 @@ fun TaskDetailsScreen(
                         Text("Priority", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Surface(color = priorityColor.copy(alpha = 0.1f), shape = MaterialTheme.shapes.small) {
                             Text(
-                                text = localTask.priority.name,
+                                text = selectedTask.priority.name,
                                 color = priorityColor,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
@@ -153,7 +109,7 @@ fun TaskDetailsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    DetailRow("Category", localTask.category)
+                    DetailRow("Category", selectedTask.category)
                 }
             }
 
@@ -168,13 +124,12 @@ fun TaskDetailsScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                val updated = localTask.copy(isCompleted = !localTask.isCompleted)
-                                localTask = updated
+                                val updated = selectedTask.copy(isCompleted = !selectedTask.isCompleted)
                                 viewModel.updateTask(updated)
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(if (localTask.isCompleted) "Mark Pending" else "Mark Complete")
+                            Text(if (selectedTask.isCompleted) "Mark Pending" else "Mark Complete")
                         }
 
                         Button(
@@ -197,7 +152,7 @@ fun TaskDetailsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteTask(localTask)
+                        viewModel.deleteTask(selectedTask)
                         showDeleteDialog = false
                         onBack()
                     }
@@ -211,6 +166,52 @@ fun TaskDetailsScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun StatusCard(task: Task) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (task.isCompleted)
+                MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                contentDescription = null,
+                tint = if (task.isCompleted)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = if (task.isCompleted) "Completed" else "Pending",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = if (task.isCompleted)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(label: String, value: String) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+        }
     }
 }
 

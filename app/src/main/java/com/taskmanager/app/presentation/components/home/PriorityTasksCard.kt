@@ -12,21 +12,21 @@ import com.taskmanager.app.domain.model.Task
 import com.taskmanager.app.presentation.navigation.Routes
 import androidx.compose.ui.Alignment
 
-
 @Composable
-fun PriorityTasksCard(tasks: List<Task>, navController: NavController) {
-    val highPriorityTasks = tasks.filter { it.priority == Priority.HIGH && !it.isCompleted }
-
+fun PriorityTasksCard(
+    tasks: List<Task>,
+    navController: NavController
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            if (highPriorityTasks.isNotEmpty()) {
+            if (tasks.isNotEmpty()) {
                 Text("High Priority Tasks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
-                highPriorityTasks.take(3).forEach { task ->
+                tasks.take(3).forEach { task ->
                     Text("• ${task.title}", style = MaterialTheme.typography.bodyMedium)
                 }
                 TextButton(

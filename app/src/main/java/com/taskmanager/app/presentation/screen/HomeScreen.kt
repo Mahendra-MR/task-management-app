@@ -10,13 +10,13 @@ import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 import com.taskmanager.app.presentation.components.home.*
 import androidx.compose.ui.Alignment
 
-
 @Composable
 fun HomeScreen(
     viewModel: TaskViewModel,
     navController: NavController
 ) {
     val state by viewModel.state.collectAsState()
+    val highPriorityTasks by viewModel.highPriorityTasks.collectAsState()
 
     Column(
         modifier = Modifier
@@ -32,7 +32,7 @@ fun HomeScreen(
 
         NavigationButtons(navController)
 
-        PriorityTasksCard(tasks = state.tasks, navController = navController)
+        PriorityTasksCard(tasks = highPriorityTasks, navController = navController)
 
         QuoteCard(
             quote = state.quote,

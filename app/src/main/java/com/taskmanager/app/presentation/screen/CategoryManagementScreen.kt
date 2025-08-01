@@ -10,6 +10,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 import com.taskmanager.app.presentation.components.category.CategoryItem
 import com.taskmanager.app.presentation.components.category.AddEditCategoryDialog
@@ -29,8 +32,9 @@ fun CategoryManagementScreen(
     var selectedCategory by remember { mutableStateOf("") }
     var newCategoryName by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadCategories()
+    // ✅ Phase 3: derivedStateOf for empty list check
+    val isCategoryListEmpty by remember(state.categories) {
+        derivedStateOf { state.categories.isEmpty() }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -54,7 +58,7 @@ fun CategoryManagementScreen(
             }
         )
 
-        if (state.categories.isEmpty()) {
+        if (isCategoryListEmpty) {
             CategoryEmptyState { showAddDialog = true }
         } else {
             LazyColumn(
@@ -63,14 +67,10 @@ fun CategoryManagementScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    Text(
-                        text = "Your Categories (${state.categories.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    CategoryHeader(state.categories.size)
                 }
 
-                items(state.categories) { category ->
+                items(state.categories, key = { it }) { category ->
                     CategoryItem(
                         category = category,
                         onClick = { onViewTasksForCategory(category) },
@@ -87,24 +87,16 @@ fun CategoryManagementScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedButton(
-                        onClick = {
-                            newCategoryName = ""
-                            showAddDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add New Category")
+                    AddNewCategoryButton {
+                        newCategoryName = ""
+                        showAddDialog = true
                     }
                 }
             }
         }
     }
 
-    // Dialogs
+    // 💬 Add Category Dialog
     if (showAddDialog) {
         AddEditCategoryDialog(
             title = "Add Category",
@@ -124,6 +116,7 @@ fun CategoryManagementScreen(
         )
     }
 
+    // 📝 Edit Category Dialog
     if (showEditDialog) {
         AddEditCategoryDialog(
             title = "Edit Category",
@@ -143,6 +136,7 @@ fun CategoryManagementScreen(
         )
     }
 
+    // 🗑️ Delete Confirmation Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -162,5 +156,26 @@ fun CategoryManagementScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun CategoryHeader(count: Int) {
+    Text(
+        text = "Your Categories ($count)",
+        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+}
+
+@Composable
+private fun AddNewCategoryButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Add New Category")
     }
 }
