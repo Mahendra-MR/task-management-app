@@ -25,8 +25,11 @@ fun TaskListScreen(
     onTaskClick: (Task) -> Unit,
     onEditTask: (Task) -> Unit
 ) {
-    val state by viewModel.state.collectAsState()
+    // ⏱ Optimized state collection
+    val tasks by viewModel.tasks.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
+    // 🎯 Filters
     var filterState by remember(categoryFilter) {
         mutableStateOf(
             if (categoryFilter.isNotEmpty())
@@ -39,8 +42,9 @@ fun TaskListScreen(
             filterState.selectedPriority != null ||
             filterState.selectedStatus != null
 
-    val filteredTasks = remember(state.tasks, filterState) {
-        state.tasks.filter { task ->
+    // 🎯 Apply filters only when needed
+    val filteredTasks = remember(tasks, filterState) {
+        tasks.filter { task ->
             val categoryMatch = filterState.selectedCategory?.let { task.category == it } ?: true
             val priorityMatch = filterState.selectedPriority?.let { task.priority == it } ?: true
             val statusMatch = filterState.selectedStatus?.let { task.isCompleted == it } ?: true
@@ -60,7 +64,7 @@ fun TaskListScreen(
         )
 
         FilterBar(
-            categories = state.categories,
+            categories = categories,
             filterState = filterState,
             onFilterChange = { filterState = it },
             onClearFilters = { filterState = FilterState() },
@@ -68,7 +72,7 @@ fun TaskListScreen(
         )
 
         when {
-            state.tasks.isEmpty() -> EmptyTaskState()
+            tasks.isEmpty() -> EmptyTaskState()
             filteredTasks.isEmpty() -> EmptyFilterState { filterState = FilterState() }
             else -> {
                 LazyColumn(

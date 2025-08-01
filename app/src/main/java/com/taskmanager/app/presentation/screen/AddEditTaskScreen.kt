@@ -35,7 +35,8 @@ fun AddEditTaskScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val state by viewModel.state.collectAsState()
+
+    val categories by viewModel.categories.collectAsState()
 
     // Date and time formatters
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
@@ -64,68 +65,58 @@ fun AddEditTaskScreen(
         }
     }
 
-    // Load categories when screen opens
+    // Load categories once
     LaunchedEffect(Unit) {
         viewModel.loadCategories()
     }
 
-    // Computed values
     val selectedDateText = selectedDate?.let { dateFormat.format(it.time) } ?: ""
     val selectedTimeText = selectedTime?.let { timeFormat.format(it.time) } ?: ""
-    val dueDateMillis = if (selectedDate != null && selectedTime != null) {
-        val combined = (selectedDate!!.clone() as Calendar).apply {
-            set(Calendar.HOUR_OF_DAY, selectedTime!!.get(Calendar.HOUR_OF_DAY))
-            set(Calendar.MINUTE, selectedTime!!.get(Calendar.MINUTE))
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        combined.timeInMillis
-    } else 0L
+    val dueDateMillis = remember(selectedDate, selectedTime) {
+        if (selectedDate != null && selectedTime != null) {
+            val combined = (selectedDate!!.clone() as Calendar).apply {
+                set(Calendar.HOUR_OF_DAY, selectedTime!!.get(Calendar.HOUR_OF_DAY))
+                set(Calendar.MINUTE, selectedTime!!.get(Calendar.MINUTE))
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            combined.timeInMillis
+        } else 0L
+    }
 
-    // Click handlers for date and time pickers
     val onDateClick = {
-        val currentCalendar = selectedDate ?: Calendar.getInstance()
-
+        val current = selectedDate ?: Calendar.getInstance()
         DatePickerDialog(
             context,
-            { _, year, month, dayOfMonth ->
+            { _, y, m, d ->
                 selectedDate = Calendar.getInstance().apply {
-                    set(Calendar.YEAR, year)
-                    set(Calendar.MONTH, month)
-                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.YEAR, y)
+                    set(Calendar.MONTH, m)
+                    set(Calendar.DAY_OF_MONTH, d)
                 }
-
-                // If no time selected, set to current time
-                if (selectedTime == null) {
-                    selectedTime = Calendar.getInstance()
-                }
+                if (selectedTime == null) selectedTime = Calendar.getInstance()
             },
-            currentCalendar.get(Calendar.YEAR),
-            currentCalendar.get(Calendar.MONTH),
-            currentCalendar.get(Calendar.DAY_OF_MONTH)
+            current.get(Calendar.YEAR),
+            current.get(Calendar.MONTH),
+            current.get(Calendar.DAY_OF_MONTH)
         ).show()
     }
 
     val onTimeClick = {
-        val currentTime = selectedTime ?: Calendar.getInstance()
-
+        val current = selectedTime ?: Calendar.getInstance()
         TimePickerDialog(
             context,
-            { _, hourOfDay, minute ->
+            { _, h, min ->
                 selectedTime = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, hourOfDay)
-                    set(Calendar.MINUTE, minute)
+                    set(Calendar.HOUR_OF_DAY, h)
+                    set(Calendar.MINUTE, min)
                     set(Calendar.SECOND, 0)
                     set(Calendar.MILLISECOND, 0)
                 }
-
-                // If no date selected, set to current date
-                if (selectedDate == null) {
-                    selectedDate = Calendar.getInstance()
-                }
+                if (selectedDate == null) selectedDate = Calendar.getInstance()
             },
-            currentTime.get(Calendar.HOUR_OF_DAY),
-            currentTime.get(Calendar.MINUTE),
+            current.get(Calendar.HOUR_OF_DAY),
+            current.get(Calendar.MINUTE),
             false
         ).show()
     }
@@ -137,14 +128,12 @@ fun AddEditTaskScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
         Text(
             text = if (taskToEdit != null) "Edit Task" else "Add New Task",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary
         )
 
-        // Title Field
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
@@ -157,7 +146,6 @@ fun AddEditTaskScreen(
             } else null
         )
 
-        // Description Field
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
@@ -167,9 +155,8 @@ fun AddEditTaskScreen(
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next)
         )
 
-        // Category Dropdown
         CategoryDropdown(
-            categories = state.categories,
+            categories = categories,
             selectedCategory = category,
             onCategorySelected = { category = it },
             onAddCategoryClick = onNavigateToCategories,
@@ -180,7 +167,6 @@ fun AddEditTaskScreen(
             } else null
         )
 
-        // Date Picker Field
         OutlinedTextField(
             value = selectedDateText,
             onValueChange = { onDateClick() },
@@ -189,17 +175,13 @@ fun AddEditTaskScreen(
             readOnly = true,
             trailingIcon = {
                 IconButton(onClick = onDateClick) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = "Select Date",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(Icons.Default.CalendarToday, contentDescription = "Select Date")
                 }
             },
             interactionSource = remember { MutableInteractionSource() }
-                .also { interactionSource ->
-                    LaunchedEffect(interactionSource) {
-                        interactionSource.interactions.collect {
+                .also { source ->
+                    LaunchedEffect(source) {
+                        source.interactions.collect {
                             if (it is androidx.compose.foundation.interaction.PressInteraction.Press) {
                                 onDateClick()
                             }
@@ -212,7 +194,6 @@ fun AddEditTaskScreen(
             } else null
         )
 
-        // Time Picker Field
         OutlinedTextField(
             value = selectedTimeText,
             onValueChange = { onTimeClick() },
@@ -221,17 +202,13 @@ fun AddEditTaskScreen(
             readOnly = true,
             trailingIcon = {
                 IconButton(onClick = onTimeClick) {
-                    Icon(
-                        imageVector = Icons.Default.AccessTime,
-                        contentDescription = "Select Time",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(Icons.Default.AccessTime, contentDescription = "Select Time")
                 }
             },
             interactionSource = remember { MutableInteractionSource() }
-                .also { interactionSource ->
-                    LaunchedEffect(interactionSource) {
-                        interactionSource.interactions.collect {
+                .also { source ->
+                    LaunchedEffect(source) {
+                        source.interactions.collect {
                             if (it is androidx.compose.foundation.interaction.PressInteraction.Press) {
                                 onTimeClick()
                             }
@@ -244,35 +221,21 @@ fun AddEditTaskScreen(
             } else null
         )
 
-        // Priority Dropdown
         PriorityDropdown(
             selected = priority,
             onSelected = { priority = it },
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Completion Status
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Checkbox(
-                checked = isCompleted,
-                onCheckedChange = { isCompleted = it }
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = isCompleted, onCheckedChange = { isCompleted = it })
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Mark as completed",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text("Mark as completed", style = MaterialTheme.typography.bodyMedium)
         }
 
-        // Validation Error Message
         if (showValidationError) {
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -284,15 +247,10 @@ fun AddEditTaskScreen(
             }
         }
 
-        // Save Button
         Button(
             onClick = {
-                val hasValidationErrors = title.isBlank() ||
-                        category.isBlank() ||
-                        selectedDate == null ||
-                        selectedTime == null
-
-                if (hasValidationErrors) {
+                val hasError = title.isBlank() || category.isBlank() || selectedDate == null || selectedTime == null
+                if (hasError) {
                     showValidationError = true
                 } else {
                     showValidationError = false
@@ -305,7 +263,6 @@ fun AddEditTaskScreen(
                         category = category.trim(),
                         isCompleted = isCompleted
                     )
-
                     if (taskToEdit != null) {
                         viewModel.updateTask(task)
                     } else {
@@ -314,18 +271,11 @@ fun AddEditTaskScreen(
                     onSave()
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = if (taskToEdit != null) "Update Task" else "Add Task",
-                style = MaterialTheme.typography.labelLarge
-            )
+            Text(if (taskToEdit != null) "Update Task" else "Add Task")
         }
 
-        // Debug info (remove in production)
         if (dueDateMillis > 0) {
             Text(
                 text = "Selected: ${Date(dueDateMillis)}",

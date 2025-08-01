@@ -21,7 +21,7 @@ fun CategoryManagementScreen(
     onBack: () -> Unit,
     onViewTasksForCategory: (String) -> Unit = {}
 ) {
-    val state by viewModel.state.collectAsState()
+    val categories by viewModel.categories.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -33,35 +33,28 @@ fun CategoryManagementScreen(
         viewModel.loadCategories()
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Top App Bar
+    Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Manage Categories") },
             navigationIcon = {
                 IconButton(onClick = {
-                    // Refresh data before going back
-                    viewModel.refreshData()
+                    viewModel.loadCategories()
                     onBack()
                 }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             },
             actions = {
-                IconButton(
-                    onClick = {
-                        newCategoryName = ""
-                        showAddDialog = true
-                    }
-                ) {
+                IconButton(onClick = {
+                    newCategoryName = ""
+                    showAddDialog = true
+                }) {
                     Icon(Icons.Default.Add, contentDescription = "Add Category")
                 }
             }
         )
 
-        // Content
-        if (state.categories.isEmpty()) {
+        if (categories.isEmpty()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -92,14 +85,14 @@ fun CategoryManagementScreen(
             ) {
                 item {
                     Text(
-                        text = "Your Categories (${state.categories.size})",
+                        text = "Your Categories (${categories.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
 
-                items(state.categories) { category ->
+                items(categories) { category ->
                     CategoryItem(
                         category = category,
                         onClick = { onViewTasksForCategory(category) },
@@ -133,7 +126,7 @@ fun CategoryManagementScreen(
         }
     }
 
-    // Dialogs
+    // Add Dialog
     if (showAddDialog) {
         AddEditCategoryDialog(
             title = "Add Category",
@@ -153,6 +146,7 @@ fun CategoryManagementScreen(
         )
     }
 
+    // Edit Dialog
     if (showEditDialog) {
         AddEditCategoryDialog(
             title = "Edit Category",
@@ -172,11 +166,14 @@ fun CategoryManagementScreen(
         )
     }
 
+    // Delete Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Category") },
-            text = { Text("Are you sure you want to delete \"$selectedCategory\"? Tasks in this category will keep their category name, but the category will be removed from the list.") },
+            text = {
+                Text("Are you sure you want to delete \"$selectedCategory\"? Tasks in this category will keep their category name, but the category will be removed from the list.")
+            },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteCategory(selectedCategory)

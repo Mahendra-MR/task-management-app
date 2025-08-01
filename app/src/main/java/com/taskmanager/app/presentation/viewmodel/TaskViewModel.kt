@@ -3,38 +3,48 @@ package com.taskmanager.app.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.taskmanager.app.domain.model.Task
 import com.taskmanager.app.domain.model.Quote
+import com.taskmanager.app.domain.model.Task
 import com.taskmanager.app.domain.usecase.TaskUseCases
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.UnknownHostException
-
-data class TaskUiState(
-    val tasks: List<Task> = emptyList(),
-    val selectedTask: Task? = null,
-    val quote: Quote? = null,
-    val categories: List<String> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
+import com.taskmanager.app.domain.model.Priority
 
 class TaskViewModel(
     private val useCases: TaskUseCases
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(TaskUiState())
-    val state: StateFlow<TaskUiState> = _state.asStateFlow()
-
+    // 🔹 Split StateFlows (instead of big TaskUiState)
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
+    private val _quote = MutableStateFlow<Quote?>(null)
+    val quote: StateFlow<Quote?> = _quote.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _selectedTask = MutableStateFlow<Task?>(null)
+    val selectedTask: StateFlow<Task?> = _selectedTask.asStateFlow()
+
+    private val _categories = MutableStateFlow<List<String>>(emptyList())
+    val categories: StateFlow<List<String>> = _categories.asStateFlow()
+
+    private val _highPriorityTasks = MutableStateFlow<List<Task>>(emptyList())
+    val highPriorityTasks: StateFlow<List<Task>> = _highPriorityTasks.asStateFlow()
+
+
     init {
-        // Only load essential data - NO QUOTE LOADING HERE!
-        refreshData()
-        // loadQuote() - REMOVED FROM INIT!
+        loadTasks()
+        loadCategories()
+        loadQuote()
     }
+
 
     fun loadTasks() {
         viewModelScope.launch {
@@ -42,35 +52,38 @@ class TaskViewModel(
                 .distinctUntilChanged()
                 .collect { taskList ->
                     _tasks.value = taskList
-                    _state.update { it.copy(tasks = taskList) }
+                    _highPriorityTasks.value = taskList.filter {
+                        it.priority == Priority.HIGH && !it.isCompleted
+                    }
                 }
         }
     }
 
-    // Quote loading method - now only called when needed
     fun loadQuote() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _isLoading.value = true
+            _error.value = null
 
             try {
                 Log.d("TaskViewModel", "Loading quote...")
-                val quote = useCases.getQuote()
-                Log.d("TaskViewModel", "Quote loaded: ${quote.content}")
-
-                _state.update { it.copy(quote = quote, isLoading = false) }
+                val quoteResult = useCases.getQuote()
+                _quote.value = quoteResult
+                Log.d("TaskViewModel", "Quote loaded: ${quoteResult.content}")
             } catch (e: UnknownHostException) {
                 handleError("No internet connection", e)
             } catch (e: IOException) {
                 handleError("Network error. Try again.", e)
             } catch (e: Exception) {
                 handleError("Unexpected error: ${e.message}", e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
     private fun handleError(message: String, exception: Exception) {
         Log.e("TaskViewModel", message, exception)
-        _state.update { it.copy(error = message, isLoading = false) }
+        _error.value = message
     }
 
     fun retryLoadQuote() = loadQuote()
@@ -78,11 +91,22 @@ class TaskViewModel(
     fun loadCategories() {
         viewModelScope.launch {
             try {
-                val categories = useCases.getCategories()
-                _state.update { it.copy(categories = categories) }
-                Log.d("TaskViewModel", "Categories loaded: $categories")
+                val result = useCases.getCategories()
+                _categories.value = result
+                Log.d("TaskViewModel", "Categories loaded: $result")
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to load categories", e)
+            }
+        }
+    }
+
+    fun getTaskById(id: Int) {
+        viewModelScope.launch {
+            try {
+                val task = useCases.getTaskById(id)
+                _selectedTask.value = task
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Failed to get task by ID", e)
             }
         }
     }
@@ -120,17 +144,6 @@ class TaskViewModel(
         }
     }
 
-    fun getTaskById(id: Int) {
-        viewModelScope.launch {
-            try {
-                val task = useCases.getTaskById(id)
-                _state.update { it.copy(selectedTask = task) }
-            } catch (e: Exception) {
-                Log.e("TaskViewModel", "Failed to get task by ID", e)
-            }
-        }
-    }
-
     fun filterByCategory(category: String) {
         viewModelScope.launch {
             try {
@@ -138,7 +151,6 @@ class TaskViewModel(
                     .distinctUntilChanged()
                     .collect { filtered ->
                         _tasks.value = filtered
-                        _state.update { it.copy(tasks = filtered) }
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to filter by category", e)
@@ -153,7 +165,6 @@ class TaskViewModel(
                     .distinctUntilChanged()
                     .collect { filtered ->
                         _tasks.value = filtered
-                        _state.update { it.copy(tasks = filtered) }
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to filter by priority", e)
@@ -168,7 +179,6 @@ class TaskViewModel(
                     .distinctUntilChanged()
                     .collect { filtered ->
                         _tasks.value = filtered
-                        _state.update { it.copy(tasks = filtered) }
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to filter by status", e)
@@ -214,6 +224,5 @@ class TaskViewModel(
 
     fun refreshData() {
         loadTasks()
-        loadCategories()
     }
 }
