@@ -9,8 +9,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.taskmanager.app.domain.model.Priority
-import com.taskmanager.app.presentation.components.CategoryDropdown
-import com.taskmanager.app.presentation.components.PriorityDropdown
+import com.taskmanager.app.presentation.components.task.CategoryDropdown
+import com.taskmanager.app.presentation.components.task.PriorityDropdown
 import java.util.*
 
 @Composable

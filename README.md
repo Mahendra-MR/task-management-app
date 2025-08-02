@@ -124,7 +124,7 @@ If the device is offline or the proxy fails, the app loads the **last cached quo
 │   └── repository/ # Abstract repository interface
 │
 ├── presentation/
-│   ├── components/ # Shared Composables (e.g., dropdowns, chips)
+│   ├── components/ # Shared Composables
 │   ├── screen/     # Home, Add/Edit Task, Task List, etc.
 │   ├── navigation/ # Navigation routes and NavHost
 │   └── viewmodel/  # TaskViewModel using StateFlow

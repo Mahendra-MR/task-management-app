@@ -27,36 +27,33 @@ class TaskViewModel(
     private val _state = MutableStateFlow(TaskUiState())
     val state: StateFlow<TaskUiState> = _state.asStateFlow()
 
-    private val _tasks = MutableStateFlow<List<Task>>(emptyList())
-    val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+    val tasks: StateFlow<List<Task>> = state.map { it.tasks }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _highPriorityTasks = MutableStateFlow<List<Task>>(emptyList())
-    val highPriorityTasks: StateFlow<List<Task>> = _highPriorityTasks
+    val categories: StateFlow<List<String>> = state.map { it.categories }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _completedTasks = MutableStateFlow<List<Task>>(emptyList())
-    val completedTasks: StateFlow<List<Task>> = _completedTasks
+    val quote: StateFlow<Quote?> = state.map { it.quote }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _incompleteTasks = MutableStateFlow<List<Task>>(emptyList())
-    val incompleteTasks: StateFlow<List<Task>> = _incompleteTasks
+    val isLoading: StateFlow<Boolean> = state.map { it.isLoading }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _dueTodayTasks = MutableStateFlow<List<Task>>(emptyList())
-    val dueTodayTasks: StateFlow<List<Task>> = _dueTodayTasks
+    val error: StateFlow<String?> = state.map { it.error }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _overdueTasks = MutableStateFlow<List<Task>>(emptyList())
-    val overdueTasks: StateFlow<List<Task>> = _overdueTasks
+    val selectedTask: StateFlow<Task?> = state.map { it.selectedTask }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    init {
-        refreshData()
-        loadQuote()
-    }
+    val highPriorityTasks: StateFlow<List<Task>> = tasks.map { list ->
+        list.filter { it.priority == Priority.HIGH && !it.isCompleted }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // refresh
-    fun refreshData() {
-        loadTasks()
-        loadCategories()
-    }
+    val completedTasks: StateFlow<List<Task>> = tasks.map { list ->
+        list.filter { it.isCompleted }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private fun updateFilteredTasks(all: List<Task>) {
+    val dueTodayTasks: StateFlow<List<Task>> = tasks.map { list ->
         val todayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
@@ -66,22 +63,51 @@ class TaskViewModel(
 
         val todayEnd = todayStart + 86400000L
 
-        _highPriorityTasks.value = all.filter { it.priority == Priority.HIGH }
-        _completedTasks.value = all.filter { it.isCompleted }
-        _incompleteTasks.value = all.filter { !it.isCompleted }
-        _dueTodayTasks.value = all.filter { !it.isCompleted && it.dueDate in todayStart until todayEnd }
-        _overdueTasks.value = all.filter { !it.isCompleted && it.dueDate < todayStart }
+        list.filter { !it.isCompleted && it.dueDate in todayStart until todayEnd }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val overdueTasks: StateFlow<List<Task>> = tasks.map { list ->
+        val todayStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        list.filter { !it.isCompleted && it.dueDate < todayStart }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    data class HomeUiState(
+        val quote: Quote? = null,
+        val isLoading: Boolean = false,
+        val error: String? = null,
+        val highPriorityPreviewTasks: List<Task> = emptyList()
+    )
+
+    val homeUiState: StateFlow<HomeUiState> = combine(
+        quote, isLoading, error, highPriorityTasks
+    ) { quote, isLoading, error, highPriorityTasks ->
+        HomeUiState(
+            quote = quote,
+            isLoading = isLoading,
+            error = error,
+            highPriorityPreviewTasks = highPriorityTasks.take(3)
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    init {
+        loadTasks()
+        loadCategories()
+        loadQuote()
     }
 
-    private fun loadTasks() {
+    fun loadTasks() {
         viewModelScope.launch {
             try {
                 useCases.getAllTasks()
                     .distinctUntilChanged()
                     .collect { taskList ->
-                        _tasks.value = taskList
                         _state.update { it.copy(tasks = taskList) }
-                        updateFilteredTasks(taskList)
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to load tasks", e)
@@ -127,7 +153,7 @@ class TaskViewModel(
         viewModelScope.launch {
             try {
                 useCases.addTask(task)
-                refreshData()
+                // no need to call loadTasks() if DB emits flow automatically
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to add task", e)
             }
@@ -138,7 +164,6 @@ class TaskViewModel(
         viewModelScope.launch {
             try {
                 useCases.updateTask(task)
-                refreshData()
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to update task", e)
             }
@@ -149,7 +174,6 @@ class TaskViewModel(
         viewModelScope.launch {
             try {
                 useCases.deleteTask(task)
-                refreshData()
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to delete task", e)
             }
@@ -172,7 +196,6 @@ class TaskViewModel(
             try {
                 useCases.addCategory(category)
                 loadCategories()
-                Log.d("TaskViewModel", "Category added: $category")
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to add category", e)
             }
@@ -184,7 +207,6 @@ class TaskViewModel(
             try {
                 useCases.deleteCategory(category)
                 loadCategories()
-                Log.d("TaskViewModel", "Category deleted: $category")
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to delete category", e)
             }
@@ -195,24 +217,20 @@ class TaskViewModel(
         viewModelScope.launch {
             try {
                 useCases.updateCategory(oldCategory, newCategory)
-                refreshData()
-                Log.d("TaskViewModel", "Category updated from $oldCategory to $newCategory")
+                loadCategories()
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to update category", e)
             }
         }
     }
 
-    // Optional filters — can be removed if unused
     fun filterByCategory(category: String) {
         viewModelScope.launch {
             try {
                 useCases.filterTasks.byCategory(category)
                     .distinctUntilChanged()
                     .collect { filtered ->
-                        _tasks.value = filtered
                         _state.update { it.copy(tasks = filtered) }
-                        updateFilteredTasks(filtered)
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to filter by category", e)
@@ -226,9 +244,7 @@ class TaskViewModel(
                 useCases.filterTasks.byPriority(priority)
                     .distinctUntilChanged()
                     .collect { filtered ->
-                        _tasks.value = filtered
                         _state.update { it.copy(tasks = filtered) }
-                        updateFilteredTasks(filtered)
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to filter by priority", e)
@@ -242,9 +258,7 @@ class TaskViewModel(
                 useCases.filterTasks.byStatus(isCompleted)
                     .distinctUntilChanged()
                     .collect { filtered ->
-                        _tasks.value = filtered
                         _state.update { it.copy(tasks = filtered) }
-                        updateFilteredTasks(filtered)
                     }
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Failed to filter by status", e)

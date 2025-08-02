@@ -21,7 +21,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailsScreen(
-    task: Task,
+    taskId: Int,
     viewModel: TaskViewModel,
     onEdit: () -> Unit,
     onBack: () -> Unit
@@ -29,19 +29,24 @@ fun TaskDetailsScreen(
     val scrollState = rememberScrollState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Trigger task load on screen open
-    LaunchedEffect(task.id) {
-        viewModel.getTaskById(task.id)
+    // Safer: Load task only when taskId changes
+    LaunchedEffect(taskId) {
+        viewModel.getTaskById(taskId)
     }
 
-    val state by viewModel.state.collectAsState()
-    val selectedTask = state.selectedTask ?: return
+    val selectedTask by viewModel.selectedTask.collectAsState()
+
+    // Show nothing if task not loaded
+    val task = selectedTask ?: return
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault()) }
-    val priorityColor = when (selectedTask.priority) {
-        Priority.HIGH -> Color.Red
-        Priority.MEDIUM -> Color(0xFFFF9800)
-        Priority.LOW -> Color(0xFF4CAF50)
+
+    val priorityColor = remember(task.priority) {
+        when (task.priority) {
+            Priority.HIGH -> Color.Red
+            Priority.MEDIUM -> Color(0xFFFF9800)
+            Priority.LOW -> Color(0xFF4CAF50)
+        }
     }
 
     Column(
@@ -72,23 +77,17 @@ fun TaskDetailsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Status
-            StatusCard(selectedTask)
-
-            // Title
-            InfoCard("Title", selectedTask.title)
-
-            // Description
-            if (selectedTask.description.isNotBlank()) {
-                InfoCard("Description", selectedTask.description)
+            StatusCard(task)
+            InfoCard("Title", task.title)
+            if (task.description.isNotBlank()) {
+                InfoCard("Description", task.description)
             }
 
-            // Task Details
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Task Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(12.dp))
-                    DetailRow("Due Date", dateFormat.format(Date(selectedTask.dueDate)))
+                    DetailRow("Due Date", dateFormat.format(Date(task.dueDate)))
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
@@ -99,7 +98,7 @@ fun TaskDetailsScreen(
                         Text("Priority", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Surface(color = priorityColor.copy(alpha = 0.1f), shape = MaterialTheme.shapes.small) {
                             Text(
-                                text = selectedTask.priority.name,
+                                text = task.priority.name,
                                 color = priorityColor,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
@@ -109,11 +108,10 @@ fun TaskDetailsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    DetailRow("Category", selectedTask.category)
+                    DetailRow("Category", task.category)
                 }
             }
 
-            // Quick Actions
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Quick Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
@@ -124,12 +122,12 @@ fun TaskDetailsScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                val updated = selectedTask.copy(isCompleted = !selectedTask.isCompleted)
+                                val updated = task.copy(isCompleted = !task.isCompleted)
                                 viewModel.updateTask(updated)
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(if (selectedTask.isCompleted) "Mark Pending" else "Mark Complete")
+                            Text(if (task.isCompleted) "Mark Pending" else "Mark Complete")
                         }
 
                         Button(
@@ -152,7 +150,7 @@ fun TaskDetailsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteTask(selectedTask)
+                        viewModel.deleteTask(task)
                         showDeleteDialog = false
                         onBack()
                     }
@@ -168,6 +166,7 @@ fun TaskDetailsScreen(
         )
     }
 }
+
 
 @Composable
 private fun StatusCard(task: Task) {

@@ -1,4 +1,4 @@
-package com.taskmanager.app.presentation.components
+package com.taskmanager.app.presentation.components.task
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*

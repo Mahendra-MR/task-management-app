@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -15,7 +16,6 @@ import com.taskmanager.app.domain.model.*
 import com.taskmanager.app.presentation.components.edit.*
 import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
-import androidx.compose.runtime.saveable.rememberSaveable
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,14 +28,14 @@ fun AddEditTaskScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val state by viewModel.state.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
 
-    var title by rememberSaveable { mutableStateOf(taskToEdit?.title ?: "") }
-    var description by rememberSaveable { mutableStateOf(taskToEdit?.description ?: "") }
-    var category by rememberSaveable { mutableStateOf(taskToEdit?.category ?: "") }
+    var title by rememberSaveable { mutableStateOf(taskToEdit?.title.orEmpty()) }
+    var description by rememberSaveable { mutableStateOf(taskToEdit?.description.orEmpty()) }
+    var category by rememberSaveable { mutableStateOf(taskToEdit?.category.orEmpty()) }
     var priority by rememberSaveable { mutableStateOf(taskToEdit?.priority ?: Priority.MEDIUM) }
     var isCompleted by rememberSaveable { mutableStateOf(taskToEdit?.isCompleted ?: false) }
     var showValidationError by rememberSaveable { mutableStateOf(false) }
@@ -43,6 +43,7 @@ fun AddEditTaskScreen(
     var selectedDate by remember { mutableStateOf<Calendar?>(null) }
     var selectedTime by remember { mutableStateOf<Calendar?>(null) }
 
+    // ✅ Only initialize if task has due date
     LaunchedEffect(taskToEdit) {
         taskToEdit?.dueDate?.takeIf { it > 0 }?.let {
             val cal = Calendar.getInstance().apply { timeInMillis = it }
@@ -51,11 +52,7 @@ fun AddEditTaskScreen(
         }
     }
 
-    // ✅ This is now valid again since we made it public
-    LaunchedEffect(Unit) {
-        viewModel.loadCategories()
-    }
-
+    // ✅ Derive due date millis
     val dueDateMillis by remember(selectedDate, selectedTime) {
         derivedStateOf {
             if (selectedDate != null && selectedTime != null) {
@@ -69,46 +66,55 @@ fun AddEditTaskScreen(
         }
     }
 
-    val selectedDateText = selectedDate?.let { dateFormat.format(it.time) } ?: ""
-    val selectedTimeText = selectedTime?.let { timeFormat.format(it.time) } ?: ""
-
-    val onDateClick = {
-        val current = selectedDate ?: Calendar.getInstance()
-        DatePickerDialog(
-            context,
-            { _, y, m, d ->
-                selectedDate = Calendar.getInstance().apply {
-                    set(Calendar.YEAR, y)
-                    set(Calendar.MONTH, m)
-                    set(Calendar.DAY_OF_MONTH, d)
-                }.also {
-                    if (selectedTime == null) selectedTime = Calendar.getInstance()
-                }
-            },
-            current.get(Calendar.YEAR),
-            current.get(Calendar.MONTH),
-            current.get(Calendar.DAY_OF_MONTH)
-        ).show()
+    val selectedDateText by remember(selectedDate) {
+        derivedStateOf { selectedDate?.let { dateFormat.format(it.time) } ?: "" }
     }
 
-    val onTimeClick = {
-        val current = selectedTime ?: Calendar.getInstance()
-        TimePickerDialog(
-            context,
-            { _, h, m ->
-                selectedTime = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, h)
-                    set(Calendar.MINUTE, m)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }.also {
-                    if (selectedDate == null) selectedDate = Calendar.getInstance()
-                }
-            },
-            current.get(Calendar.HOUR_OF_DAY),
-            current.get(Calendar.MINUTE),
-            false
-        ).show()
+    val selectedTimeText by remember(selectedTime) {
+        derivedStateOf { selectedTime?.let { timeFormat.format(it.time) } ?: "" }
+    }
+
+    val onDateClick = remember {
+        {
+            val current = selectedDate ?: Calendar.getInstance()
+            DatePickerDialog(
+                context,
+                { _, y, m, d ->
+                    selectedDate = Calendar.getInstance().apply {
+                        set(Calendar.YEAR, y)
+                        set(Calendar.MONTH, m)
+                        set(Calendar.DAY_OF_MONTH, d)
+                    }.also {
+                        if (selectedTime == null) selectedTime = Calendar.getInstance()
+                    }
+                },
+                current.get(Calendar.YEAR),
+                current.get(Calendar.MONTH),
+                current.get(Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+    }
+
+    val onTimeClick = remember {
+        {
+            val current = selectedTime ?: Calendar.getInstance()
+            TimePickerDialog(
+                context,
+                { _, h, m ->
+                    selectedTime = Calendar.getInstance().apply {
+                        set(Calendar.HOUR_OF_DAY, h)
+                        set(Calendar.MINUTE, m)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }.also {
+                        if (selectedDate == null) selectedDate = Calendar.getInstance()
+                    }
+                },
+                current.get(Calendar.HOUR_OF_DAY),
+                current.get(Calendar.MINUTE),
+                false
+            ).show()
+        }
     }
 
     Column(
@@ -141,7 +147,7 @@ fun AddEditTaskScreen(
             selectedDate = selectedDate,
             selectedTime = selectedTime,
             showValidationError = showValidationError,
-            categories = state.categories
+            categories = categories
         )
 
         CompletionCheckbox(isCompleted = isCompleted) { isCompleted = it }

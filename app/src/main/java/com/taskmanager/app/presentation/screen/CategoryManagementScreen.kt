@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.taskmanager.app.presentation.viewmodel.TaskViewModel
 import com.taskmanager.app.presentation.components.category.CategoryItem
 import com.taskmanager.app.presentation.components.category.AddEditCategoryDialog
@@ -25,41 +24,77 @@ fun CategoryManagementScreen(
     onBack: () -> Unit,
     onViewTasksForCategory: (String) -> Unit = {}
 ) {
-    val state by viewModel.state.collectAsState()
+    val categories by viewModel.categories.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf("") }
     var newCategoryName by remember { mutableStateOf("") }
 
-    // ✅ Phase 3: derivedStateOf for empty list check
-    val isCategoryListEmpty by remember(state.categories) {
-        derivedStateOf { state.categories.isEmpty() }
+    val isCategoryListEmpty by remember(categories) {
+        derivedStateOf { categories.isEmpty() }
+    }
+
+    val onAddClick = remember {
+        {
+            newCategoryName = ""
+            showAddDialog = true
+        }
+    }
+
+    val onEditClick: (String) -> Unit = remember {
+        {
+            selectedCategory = it
+            newCategoryName = it
+            showEditDialog = true
+        }
+    }
+
+    val onDeleteClick: (String) -> Unit = remember {
+        {
+            selectedCategory = it
+            showDeleteDialog = true
+        }
+    }
+
+    val onConfirmAdd = remember(newCategoryName) {
+        {
+            if (newCategoryName.trim().isNotBlank()) {
+                viewModel.addCategory(newCategoryName.trim())
+                showAddDialog = false
+                newCategoryName = ""
+            }
+        }
+    }
+
+    val onConfirmEdit = remember(selectedCategory, newCategoryName) {
+        {
+            val trimmedNew = newCategoryName.trim()
+            if (trimmedNew.isNotBlank() && trimmedNew != selectedCategory) {
+                viewModel.updateCategory(selectedCategory, trimmedNew)
+                showEditDialog = false
+                newCategoryName = ""
+            }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Manage Categories") },
             navigationIcon = {
-                IconButton(onClick = {
-                    viewModel.refreshData()
-                    onBack()
-                }) {
+                IconButton(onClick = onBack) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                 }
             },
             actions = {
-                IconButton(onClick = {
-                    newCategoryName = ""
-                    showAddDialog = true
-                }) {
+                IconButton(onClick = onAddClick) {
                     Icon(Icons.Filled.Add, contentDescription = "Add Category")
                 }
             }
         )
 
         if (isCategoryListEmpty) {
-            CategoryEmptyState { showAddDialog = true }
+            CategoryEmptyState(onAddClick = onAddClick)
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -67,48 +102,31 @@ fun CategoryManagementScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    CategoryHeader(state.categories.size)
+                    CategoryHeader(categories.size)
                 }
 
-                items(state.categories, key = { it }) { category ->
+                items(categories, key = { it }) { category ->
                     CategoryItem(
                         category = category,
                         onClick = { onViewTasksForCategory(category) },
-                        onEdit = {
-                            selectedCategory = category
-                            newCategoryName = category
-                            showEditDialog = true
-                        },
-                        onDelete = {
-                            selectedCategory = category
-                            showDeleteDialog = true
-                        }
+                        onEdit = { onEditClick(category) },
+                        onDelete = { onDeleteClick(category) }
                     )
                 }
 
                 item {
-                    AddNewCategoryButton {
-                        newCategoryName = ""
-                        showAddDialog = true
-                    }
+                    AddNewCategoryButton(onClick = onAddClick)
                 }
             }
         }
     }
 
-    // 💬 Add Category Dialog
     if (showAddDialog) {
         AddEditCategoryDialog(
             title = "Add Category",
             categoryName = newCategoryName,
             onCategoryNameChange = { newCategoryName = it },
-            onConfirm = {
-                if (newCategoryName.trim().isNotBlank()) {
-                    viewModel.addCategory(newCategoryName.trim())
-                    showAddDialog = false
-                    newCategoryName = ""
-                }
-            },
+            onConfirm = onConfirmAdd,
             onDismiss = {
                 showAddDialog = false
                 newCategoryName = ""
@@ -116,19 +134,12 @@ fun CategoryManagementScreen(
         )
     }
 
-    // 📝 Edit Category Dialog
     if (showEditDialog) {
         AddEditCategoryDialog(
             title = "Edit Category",
             categoryName = newCategoryName,
             onCategoryNameChange = { newCategoryName = it },
-            onConfirm = {
-                if (newCategoryName.trim().isNotBlank() && newCategoryName.trim() != selectedCategory) {
-                    viewModel.updateCategory(selectedCategory, newCategoryName.trim())
-                    showEditDialog = false
-                    newCategoryName = ""
-                }
-            },
+            onConfirm = onConfirmEdit,
             onDismiss = {
                 showEditDialog = false
                 newCategoryName = ""
@@ -136,7 +147,6 @@ fun CategoryManagementScreen(
         )
     }
 
-    // 🗑️ Delete Confirmation Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -163,7 +173,10 @@ fun CategoryManagementScreen(
 private fun CategoryHeader(count: Int) {
     Text(
         text = "Your Categories ($count)",
-        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        ),
         modifier = Modifier.padding(bottom = 8.dp)
     )
 }

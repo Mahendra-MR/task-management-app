@@ -1,4 +1,4 @@
-package com.taskmanager.app.presentation.components
+package com.taskmanager.app.presentation.components.task
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -66,33 +66,30 @@ fun CategoryDropdown(
             }
         }
 
-        // Add category button
+        Spacer(modifier = Modifier.height(8.dp))
+
         if (categories.isEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onAddCategoryClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = null,
+                    contentDescription = "Add Category",
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Add Category First")
             }
         } else {
-            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(
-                    onClick = onAddCategoryClick
-                ) {
+                TextButton(onClick = onAddCategoryClick) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = null,
+                        contentDescription = "Manage Categories",
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))

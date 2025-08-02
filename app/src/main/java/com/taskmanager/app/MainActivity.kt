@@ -10,6 +10,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.taskmanager.app.di.AppModule
@@ -23,7 +24,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize Dependency Injection module
+        // Initialize DI
         AppModule.init(applicationContext)
 
         enableEdgeToEdge()
@@ -31,6 +32,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             TaskManagementAppTheme {
                 val viewModel: TaskViewModel = viewModel(factory = AppModule.viewModelFactory)
+
+                // Load initial data once on app startup
+                LaunchedEffect(Unit) {
+                    viewModel.loadTasks()
+                    viewModel.loadCategories()
+                    viewModel.loadQuote()
+                }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Surface(

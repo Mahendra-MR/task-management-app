@@ -1,4 +1,4 @@
-package com.taskmanager.app.presentation.components
+package com.taskmanager.app.presentation.components.task
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.taskmanager.app.domain.model.Task
 import java.text.SimpleDateFormat
+import androidx.compose.runtime.remember
 import java.util.Date
 import java.util.Locale
 
@@ -17,6 +18,8 @@ fun TaskCard(
     task: Task,
     onClick: () -> Unit
 ) {
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -40,24 +43,18 @@ fun TaskCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-
-            Text(
-                text = "Due: ${dateFormat.format(Date(task.dueDate))}",
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                text = "Priority: ${task.priority}",
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                text = "Category: ${task.category}",
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                text = "Status: ${if (task.isCompleted) "Completed" else "Pending"}",
-                style = MaterialTheme.typography.labelSmall
-            )
+            TaskMetaRow(label = "Due", value = dateFormat.format(Date(task.dueDate)))
+            TaskMetaRow(label = "Priority", value = task.priority.name)
+            TaskMetaRow(label = "Category", value = task.category)
+            TaskMetaRow(label = "Status", value = if (task.isCompleted) "Completed" else "Pending")
         }
     }
+}
+
+@Composable
+private fun TaskMetaRow(label: String, value: String) {
+    Text(
+        text = "$label: $value",
+        style = MaterialTheme.typography.labelSmall
+    )
 }

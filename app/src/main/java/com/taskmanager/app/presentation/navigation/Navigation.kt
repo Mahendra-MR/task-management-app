@@ -34,14 +34,12 @@ fun AppNavigation(viewModel: TaskViewModel) {
             HomeScreen(viewModel = viewModel, navController = navController)
         }
 
-        // 🔹 Unfiltered Task List
         composable(Routes.TASK_LIST) {
             TaskListScreen(
                 viewModel = viewModel,
                 categoryFilter = "",
                 onTaskClick = { task ->
-                    val json = Uri.encode(gson.toJson(task))
-                    navController.navigate("${Routes.TASK_DETAILS}/$json")
+                    navController.navigate("${Routes.TASK_DETAILS}/${task.id}")
                 },
                 onEditTask = { task ->
                     val json = Uri.encode(gson.toJson(task))
@@ -50,7 +48,6 @@ fun AppNavigation(viewModel: TaskViewModel) {
             )
         }
 
-        // 🔹 Filtered Task List
         composable(
             route = "${Routes.TASK_LIST_WITH_CATEGORY}/{category}",
             arguments = listOf(navArgument("category") { type = NavType.StringType })
@@ -60,8 +57,7 @@ fun AppNavigation(viewModel: TaskViewModel) {
                 viewModel = viewModel,
                 categoryFilter = category,
                 onTaskClick = { task ->
-                    val json = Uri.encode(gson.toJson(task))
-                    navController.navigate("${Routes.TASK_DETAILS}/$json")
+                    navController.navigate("${Routes.TASK_DETAILS}/${task.id}")
                 },
                 onEditTask = { task ->
                     val json = Uri.encode(gson.toJson(task))
@@ -70,7 +66,6 @@ fun AppNavigation(viewModel: TaskViewModel) {
             )
         }
 
-        // 🔹 Add Task (regular flow)
         composable(Routes.ADD_TASK) {
             AddEditTaskScreen(
                 viewModel = viewModel,
@@ -79,12 +74,10 @@ fun AppNavigation(viewModel: TaskViewModel) {
             )
         }
 
-        // 🔹 Add Task from Categories (returns to add task after category management)
         composable(Routes.ADD_TASK_FROM_CATEGORIES) {
             AddEditTaskScreen(
                 viewModel = viewModel,
                 onSave = {
-                    // Navigate back to home or task list after saving
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.HOME) { inclusive = false }
                     }
@@ -93,7 +86,6 @@ fun AppNavigation(viewModel: TaskViewModel) {
             )
         }
 
-        // 🔹 Edit Task (regular flow)
         composable(
             "${Routes.EDIT_TASK}/{task}",
             arguments = listOf(navArgument("task") { type = NavType.StringType })
@@ -105,14 +97,12 @@ fun AppNavigation(viewModel: TaskViewModel) {
                 taskToEdit = task,
                 onSave = { navController.popBackStack() },
                 onNavigateToCategories = {
-                    // Store the task data and navigate to categories
                     val json = Uri.encode(gson.toJson(task))
                     navController.navigate("${Routes.EDIT_TASK_FROM_CATEGORIES}/$json")
                 }
             )
         }
 
-        // 🔹 Edit Task from Categories (returns to edit task after category management)
         composable(
             "${Routes.EDIT_TASK_FROM_CATEGORIES}/{task}",
             arguments = listOf(navArgument("task") { type = NavType.StringType })
@@ -123,9 +113,7 @@ fun AppNavigation(viewModel: TaskViewModel) {
                 viewModel = viewModel,
                 taskToEdit = task,
                 onSave = {
-                    // Navigate back to task details after saving
-                    val json = Uri.encode(gson.toJson(task))
-                    navController.navigate("${Routes.TASK_DETAILS}/$json") {
+                    navController.navigate("${Routes.TASK_DETAILS}/${task.id}") {
                         popUpTo(Routes.TASK_LIST) { inclusive = false }
                     }
                 },
@@ -133,24 +121,26 @@ fun AppNavigation(viewModel: TaskViewModel) {
             )
         }
 
+        // ✅ UPDATED: TaskDetails route now takes only taskId
         composable(
-            "${Routes.TASK_DETAILS}/{task}",
-            arguments = listOf(navArgument("task") { type = NavType.StringType })
+            "${Routes.TASK_DETAILS}/{taskId}",
+            arguments = listOf(navArgument("taskId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val taskJson = backStackEntry.arguments?.getString("task")
-            val task = gson.fromJson(taskJson, Task::class.java)
+            val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
             TaskDetailsScreen(
-                task = task,
+                taskId = taskId,
                 viewModel = viewModel,
                 onEdit = {
-                    val json = Uri.encode(gson.toJson(task))
-                    navController.navigate("${Routes.EDIT_TASK}/$json")
+                    val task = viewModel.selectedTask.value
+                    if (task != null) {
+                        val json = Uri.encode(gson.toJson(task))
+                        navController.navigate("${Routes.EDIT_TASK}/$json")
+                    }
                 },
                 onBack = { navController.popBackStack() }
             )
         }
 
-        // 🔹 Categories Screen
         composable(Routes.CATEGORIES) {
             CategoryManagementScreen(
                 viewModel = viewModel,
