@@ -24,9 +24,9 @@ fun QuoteCard(
     val isPreview = LocalInspectionMode.current
     val isDarkTheme = isSystemInDarkTheme()
 
-    // 🌗 Theme-based colors
-    val backgroundColor = if (isDarkTheme) Color(0xFF3A3A4F) else Color(0xFFFFE6F0)
-    val textColor = if (isDarkTheme) Color(0xFF1A1A1A) else Color(0xFF1A1A1A)
+    //Color palette
+    val backgroundColor = if (isDarkTheme) Color(0xFF3A3A4F) else Color(0xFFFFE6F0) // Pale pink in light theme
+    val textColor = if (isDarkTheme) Color(0xFFEFEFEF) else Color(0xFF1A1A1A)
 
     Card(
         modifier = Modifier
